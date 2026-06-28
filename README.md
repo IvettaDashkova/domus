@@ -49,6 +49,19 @@ pnpm dev                              # http://localhost:3000
 | Build/lint/types     | `pnpm build` · `pnpm lint` · `pnpm typecheck` |
 | Health route         | `curl localhost:3000/api/health` |
 
+## Ingest pipeline (Phase 1)
+
+Idempotent pg-boss pipeline: `ingest → geocode → embed.text → embed.image →
+enrich`, each stage retried with exponential backoff. Permanent errors (bad
+postcode) mark the listing `failed`; transient errors retry.
+
+```bash
+pnpm worker                 # run the pipeline worker (registers all queues)
+pnpm ingest 1000 --poison   # enqueue a run (--poison adds one ungeocodable row)
+pnpm pipeline:status        # status breakdown + failures + cache
+pnpm retry:proof            # prove retry/backoff (fails 3x, then succeeds)
+```
+
 ## Layout
 
 ```
