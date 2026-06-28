@@ -18,6 +18,9 @@
     "db:rls-check": "tsx scripts/rls-check.ts",
     "worker": "tsx src/lib/jobs/worker.ts",
     "smoke:job": "tsx scripts/smoke-job.ts",
+    "ingest": "tsx scripts/ingest.ts",
+    "pipeline:status": "tsx scripts/pipeline-status.ts",
+    "retry:proof": "tsx scripts/retry-proof.ts",
     "evals": "tsx evals/run.ts",
     "osrm:prepare": "bash scripts/osrm-prepare.sh"
   },
