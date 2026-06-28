@@ -1,5 +1,7 @@
 import Map, { type MapMarker } from "@/components/Map";
 import ListingList, { type ListingRow } from "@/components/ListingList";
+import Logo from "@/components/Logo";
+import { categoryColor } from "@/lib/ui/category";
 
 // DB-touching page: keep it dynamic and Node, init the client lazily.
 export const dynamic = "force-dynamic";
@@ -45,34 +47,52 @@ export default async function Home() {
       lng: r.lng as number,
       lat: r.lat as number,
       label: r.address ?? undefined,
+      color: categoryColor(r.property_type),
     }));
 
   return (
-    <main
-      style={{
-        display: "grid",
-        gridTemplateColumns: "360px 1fr",
-        height: "100vh",
-      }}
-    >
-      <aside
-        style={{
-          background: "var(--panel)",
-          borderRight: "1px solid var(--border)",
-          overflow: "auto",
-        }}
-      >
-        <header style={{ padding: "16px 12px", borderBottom: "1px solid var(--border)" }}>
-          <h1 style={{ fontSize: 18, margin: 0 }}>Domus</h1>
-          <p style={{ color: "var(--muted)", fontSize: 12, margin: "4px 0 0" }}>
-            {error ? `DB error: ${error}` : `${rows.length} listings`}
-          </p>
-        </header>
-        <ListingList listings={rows} />
-      </aside>
-      <section style={{ padding: 8 }}>
-        <Map markers={markers} />
-      </section>
-    </main>
+    <div className="app">
+      <header className="topbar">
+        <div className="brand">
+          <Logo />
+          Domus
+        </div>
+        <div className="search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input placeholder="Search listings, leads, areas…" disabled />
+        </div>
+        <div className="topbar-spacer" />
+        <div className="avatar">DA</div>
+      </header>
+
+      <div className="body">
+        <aside className="panel">
+          <div className="panel-head">
+            <span className="panel-title">Listings</span>
+            <span className="count-pill">
+              {error ? "DB error" : `${rows.length}`}
+            </span>
+          </div>
+          {error ? (
+            <div className="empty">{error}</div>
+          ) : (
+            <ListingList listings={rows} />
+          )}
+        </aside>
+
+        <section className="panel map-wrap">
+          <div className="map-overlay">
+            <div className="map-badge">
+              <span className="dot" style={{ background: "var(--pin-green)" }} />
+              {markers.length} on map
+            </div>
+          </div>
+          <Map markers={markers} />
+        </section>
+      </div>
+    </div>
   );
 }

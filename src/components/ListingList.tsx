@@ -1,3 +1,5 @@
+import { categoryColor } from "@/lib/ui/category";
+
 export interface ListingRow {
   id: string;
   address: string | null;
@@ -6,28 +8,34 @@ export interface ListingRow {
   property_type: string | null;
 }
 
+function fmtPrice(p: number | null): string {
+  if (p == null) return "—";
+  if (p >= 1_000_000) return `£${(p / 1_000_000).toFixed(p % 1_000_000 ? 2 : 0)}M`;
+  if (p >= 1_000) return `£${Math.round(p / 1000)}k`;
+  return `£${p}`;
+}
+
 export default function ListingList({ listings }: { listings: ListingRow[] }) {
   if (listings.length === 0) {
-    return <p style={{ color: "var(--muted)" }}>No listings yet — run the seed.</p>;
+    return <div className="empty">No listings yet — run the seed.</div>;
   }
   return (
-    <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+    <div className="list">
       {listings.map((l) => (
-        <li
-          key={l.id}
-          style={{
-            padding: "10px 12px",
-            borderBottom: "1px solid var(--border)",
-            fontSize: 14,
-          }}
-        >
-          <div>{l.address ?? "(no address)"}</div>
-          <div style={{ color: "var(--muted)", fontSize: 12 }}>
-            {l.property_type ?? "—"} · {l.bedrooms ?? "?"} bed ·{" "}
-            {l.price != null ? `£${l.price.toLocaleString()}` : "—"}
+        <article key={l.id} className="card">
+          <div className="card-top">
+            <div className="card-addr">{l.address ?? "(no address)"}</div>
+            <span className="price">{fmtPrice(l.price)}</span>
           </div>
-        </li>
+          <div className="card-meta">
+            <span className="chip">
+              <span className="dot" style={{ background: categoryColor(l.property_type) }} />
+              {l.property_type ?? "property"}
+            </span>
+            {l.bedrooms != null && <span className="chip">{l.bedrooms} bed</span>}
+          </div>
+        </article>
       ))}
-    </ul>
+    </div>
   );
 }
