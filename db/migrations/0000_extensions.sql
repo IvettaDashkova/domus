@@ -17,7 +17,12 @@ begin
 end
 $$;
 
-grant connect on database domus to domus_app;
+-- Grant CONNECT on whatever database we're in (domus locally, postgres on Supabase).
+do $$
+begin
+  execute format('grant connect on database %I to domus_app', current_database());
+end
+$$;
 grant usage on schema public to domus_app;
 
 -- Default privileges so the app role can use future tables (RLS still applies).

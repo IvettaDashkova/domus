@@ -23,7 +23,10 @@ export function getDb(): postgres.Sql {
 /** Superuser connection (migrations, seeding). Bypasses RLS as table owner. */
 export function getAdminDb(): postgres.Sql {
   if (!adminSql) {
-    adminSql = postgres(databaseUrl(), { max: 5 });
+    adminSql = postgres(databaseUrl(), {
+      max: 3,
+      prepare: false, // safe behind Supabase/pgBouncer transaction pooler
+    });
   }
   return adminSql;
 }
