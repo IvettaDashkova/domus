@@ -1,0 +1,32 @@
+services:
+  db:
+    build:
+      context: ./db
+      dockerfile: Dockerfile
+    container_name: domus-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: domus
+    ports:
+      - "5434:5432"
+    volumes:
+      - domus-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d domus"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  osrm:
+    image: osrm/osrm-backend:latest
+    container_name: domus-osrm
+    # Requires a prepared extract: run `pnpm osrm:prepare` once before `up`.
+    command: osrm-routed --algorithm mld /data/isle-of-wight-latest.osrm
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./osrm/data:/data
+
+volumes:
+  domus-db-data:

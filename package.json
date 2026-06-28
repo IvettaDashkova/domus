@@ -1,0 +1,48 @@
+{
+  "name": "domus",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:seed": "tsx db/seed/seed.ts",
+    "db:rls-check": "tsx scripts/rls-check.ts",
+    "worker": "tsx src/lib/jobs/worker.ts",
+    "smoke:job": "tsx scripts/smoke-job.ts",
+    "evals": "tsx evals/run.ts",
+    "osrm:prepare": "bash scripts/osrm-prepare.sh"
+  },
+  "dependencies": {
+    "@ai-sdk/google": "^4.0.1",
+    "@huggingface/transformers": "^4.2.0",
+    "ai": "^7.0.3",
+    "dotenv": "^17.4.2",
+    "langfuse": "^3.38.20",
+    "maplibre-gl": "^5.24.0",
+    "next": "^16.2.9",
+    "pg-boss": "^12.23.0",
+    "postgres": "^3.4.9",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "sharp": "^0.34.5",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.2.9",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  }
+}

@@ -1,0 +1,40 @@
+# dependencies
+node_modules/
+.pnp.*
+.yarn/*
+
+# env — never commit secrets
+.env
+.env.*
+!.env.example
+
+# next
+.next/
+out/
+next-env.d.ts
+
+# build / cache
+dist/
+*.tsbuildinfo
+.turbo/
+
+# osrm artifacts + large extracts
+osrm/data/
+
+# seed raw data (provenance documented; regenerated locally)
+db/seed/data/
+
+# transformers.js model cache
+.cache/
+.models/
+
+# logs / os
+*.log
+.DS_Store
+
+# vercel
+.vercel/
+
+# editor
+.idea/
+.vscode/
