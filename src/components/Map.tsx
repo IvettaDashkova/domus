@@ -17,6 +17,13 @@ export interface LngLat {
   lat: number;
 }
 
+export interface MapFocus {
+  id: string;
+  lng: number;
+  lat: number;
+  key: number; // changes on every click so re-selecting the same pin refocuses
+}
+
 const DARK_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
 /**
@@ -27,13 +34,16 @@ const DARK_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.
 export default function Map({
   markers,
   onMoveEnd,
+  focus,
 }: {
   markers: MapMarker[];
   onMoveEnd?: (c: LngLat) => void;
+  focus?: MapFocus | null;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markerObjs = useRef<maplibregl.Marker[]>([]);
+  const markerById = useRef<Record<string, maplibregl.Marker>>({});
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -72,11 +82,12 @@ export default function Map({
     const map = mapRef.current;
     if (!map || !ready) return;
     for (const m of markerObjs.current) m.remove();
+    markerById.current = {};
     markerObjs.current = markers.map((m) => {
       const el = document.createElement("div");
       el.className = "pin";
       el.style.background = m.color ?? "#2f6bff";
-      return new maplibregl.Marker({ element: el })
+      const marker = new maplibregl.Marker({ element: el })
         .setLngLat([m.lng, m.lat])
         .setPopup(
           m.label
@@ -84,8 +95,19 @@ export default function Map({
             : undefined,
         )
         .addTo(map);
+      markerById.current[m.id] = marker;
+      return marker;
     });
   }, [markers, ready]);
+
+  // Fly to a clicked listing and open its popup.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || !focus) return;
+    map.flyTo({ center: [focus.lng, focus.lat], zoom: Math.max(map.getZoom(), 13), speed: 1.2 });
+    const marker = markerById.current[focus.id];
+    if (marker && !marker.getPopup()?.isOpen()) marker.togglePopup();
+  }, [focus, ready]);
 
   if (failed) {
     return <div className="empty" style={{ margin: "auto" }}>Map unavailable (WebGL required).</div>;

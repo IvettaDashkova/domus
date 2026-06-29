@@ -65,6 +65,8 @@ export async function hybridMatch(
   const vec = hasVec ? toVectorLiteral(p.queryVec!) : null;
   const brief = p.brief ?? "";
   const hasLoc = !!p.location;
+  // With no ranking signal (filters only), fall back to the filtered base list.
+  const hasSignal = hasVec || brief.trim() !== "" || hasLoc;
   const lng = p.location?.lng ?? null;
   const lat = p.location?.lat ?? null;
   const radiusM = p.location?.radiusKm != null ? p.location.radiusKm * 1000 : null;
@@ -72,7 +74,7 @@ export async function hybridMatch(
   return sql<MatchResult[]>`
     with base as (
       select id, address, price, bedrooms, property_type, description, geom,
-             text_embedding,
+             text_embedding, created_at,
              st_x(geom::geometry) as lng, st_y(geom::geometry) as lat
       from listings
       where status = 'enriched'
@@ -117,8 +119,9 @@ export async function hybridMatch(
     left join dense d on d.id = b.id
     left join lexical l on l.id = b.id
     left join spatial s on s.id = b.id
-    where d.rnk is not null or l.rnk is not null or s.rnk is not null
-    order by score desc
+    where ${hasSignal} = false
+       or d.rnk is not null or l.rnk is not null or s.rnk is not null
+    order by score desc, b.created_at desc
     limit ${limit}
   `;
 }

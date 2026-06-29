@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Map, { type MapMarker, type LngLat } from "@/components/Map";
+import Map, { type MapMarker, type LngLat, type MapFocus } from "@/components/Map";
 import ListingList, { type ListingRow } from "@/components/ListingList";
 import Logo from "@/components/Logo";
 import { categoryColor } from "@/lib/ui/category";
@@ -23,6 +23,14 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
   const [center, setCenter] = useState<LngLat>({ lng: -1.5, lat: 52.5 });
   const [loading, setLoading] = useState(false);
   const [matched, setMatched] = useState(false);
+  const [focus, setFocus] = useState<MapFocus | null>(null);
+
+  function selectListing(id: string) {
+    const row = rows.find((r) => r.id === id);
+    if (row?.lng != null && row?.lat != null) {
+      setFocus({ id, lng: row.lng, lat: row.lat, key: Date.now() });
+    }
+  }
 
   const markers: MapMarker[] = useMemo(
     () =>
@@ -145,7 +153,7 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
               <span className="count-pill">{rows.length}</span>
             </div>
           </div>
-          <ListingList listings={rows} />
+          <ListingList listings={rows} onSelect={selectListing} selectedId={focus?.id} />
         </aside>
 
         <section className="panel map-wrap">
@@ -155,7 +163,7 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
               {markers.length} on map
             </div>
           </div>
-          <Map markers={markers} onMoveEnd={setCenter} />
+          <Map markers={markers} onMoveEnd={setCenter} focus={focus} />
         </section>
       </div>
     </div>

@@ -17,14 +17,26 @@ function fmtPrice(p: number | null): string {
   return `£${p}`;
 }
 
-export default function ListingList({ listings }: { listings: ListingRow[] }) {
+export default function ListingList({
+  listings,
+  onSelect,
+  selectedId,
+}: {
+  listings: ListingRow[];
+  onSelect?: (id: string) => void;
+  selectedId?: string | null;
+}) {
   if (listings.length === 0) {
     return <div className="empty">No matches.</div>;
   }
   return (
     <div className="list">
       {listings.map((l) => (
-        <article key={l.id} className="card">
+        <article
+          key={l.id}
+          className={`card${l.id === selectedId ? " selected" : ""}`}
+          onClick={() => onSelect?.(l.id)}
+        >
           <div className="card-top">
             <div className="card-addr">
               {l.rank != null && <span className="rank">{l.rank}</span>}
