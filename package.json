@@ -22,7 +22,8 @@
     "pipeline:status": "tsx scripts/pipeline-status.ts",
     "retry:proof": "tsx scripts/retry-proof.ts",
     "evals": "tsx evals/run.ts",
-    "osrm:prepare": "bash scripts/osrm-prepare.sh"
+    "osrm:prepare": "bash scripts/osrm-prepare.sh",
+    "evals:hybrid": "tsx evals/hybrid.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.1",

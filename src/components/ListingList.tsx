@@ -6,6 +6,8 @@ export interface ListingRow {
   price: number | null;
   bedrooms: number | null;
   property_type: string | null;
+  score?: number | null;
+  rank?: number | null;
 }
 
 function fmtPrice(p: number | null): string {
@@ -17,14 +19,17 @@ function fmtPrice(p: number | null): string {
 
 export default function ListingList({ listings }: { listings: ListingRow[] }) {
   if (listings.length === 0) {
-    return <div className="empty">No listings yet — run the seed.</div>;
+    return <div className="empty">No matches.</div>;
   }
   return (
     <div className="list">
       {listings.map((l) => (
         <article key={l.id} className="card">
           <div className="card-top">
-            <div className="card-addr">{l.address ?? "(no address)"}</div>
+            <div className="card-addr">
+              {l.rank != null && <span className="rank">{l.rank}</span>}
+              {l.address ?? "(no address)"}
+            </div>
             <span className="price">{fmtPrice(l.price)}</span>
           </div>
           <div className="card-meta">
@@ -33,6 +38,11 @@ export default function ListingList({ listings }: { listings: ListingRow[] }) {
               {l.property_type ?? "property"}
             </span>
             {l.bedrooms != null && <span className="chip">{l.bedrooms} bed</span>}
+            {l.score != null && (
+              <span className="chip score" title="RRF match score">
+                {Number(l.score).toFixed(3)}
+              </span>
+            )}
           </div>
         </article>
       ))}
