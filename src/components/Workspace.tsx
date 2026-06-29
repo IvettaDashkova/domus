@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Map, { type MapMarker, type MapView, type MapFocus } from "@/components/Map";
 import ListingList, { type ListingRow } from "@/components/ListingList";
 import Logo from "@/components/Logo";
@@ -12,6 +12,25 @@ export interface WorkspaceRow extends ListingRow {
 }
 
 const TYPES = ["", "detached house", "semi-detached house", "terraced house", "flat"];
+
+function fmtPrice(p: number | null): string {
+  if (p == null) return "—";
+  if (p >= 1_000_000) return `£${(p / 1_000_000).toFixed(p % 1_000_000 ? 2 : 0)}M`;
+  if (p >= 1_000) return `£${Math.round(p / 1000)}k`;
+  return `£${p}`;
+}
+
+const esc = (s: string) =>
+  s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+
+function popupHtml(r: WorkspaceRow): string {
+  const beds = r.bedrooms != null ? ` · ${r.bedrooms} bed` : "";
+  return (
+    `<div class="pop-addr">${esc(r.address ?? "(no address)")}</div>` +
+    `<div class="pop-meta">${esc(r.property_type ?? "property")}${beds} · ` +
+    `<span class="pop-price">${fmtPrice(r.price)}</span></div>`
+  );
+}
 
 export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
   const [rows, setRows] = useState<WorkspaceRow[]>(initial);
@@ -25,13 +44,6 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
   const [matched, setMatched] = useState(false);
   const [focus, setFocus] = useState<MapFocus | null>(null);
 
-  function selectListing(id: string) {
-    const row = rows.find((r) => r.id === id);
-    if (row?.lng != null && row?.lat != null) {
-      setFocus({ id, lng: row.lng, lat: row.lat, key: Date.now() });
-    }
-  }
-
   const markers: MapMarker[] = useMemo(
     () =>
       rows
@@ -40,7 +52,7 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
           id: r.id,
           lng: r.lng as number,
           lat: r.lat as number,
-          label: r.address ?? undefined,
+          html: popupHtml(r),
           color: categoryColor(r.property_type),
         })),
     [rows],
@@ -74,6 +86,28 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
     }
   }
 
+  // Filters apply live (debounced) so the controls are self-evident.
+  const searchRef = useRef(search);
+  useEffect(() => {
+    searchRef.current = search;
+  });
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    const t = setTimeout(() => searchRef.current(), 300);
+    return () => clearTimeout(t);
+  }, [ptype, maxPrice, beds, useLoc]);
+
+  function selectListing(id: string) {
+    const row = rows.find((r) => r.id === id);
+    if (row?.lng != null && row?.lat != null) {
+      setFocus({ id, lng: row.lng, lat: row.lat, key: Date.now() });
+    }
+  }
+
   function reset() {
     setRows(initial);
     setBrief("");
@@ -82,6 +116,7 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
     setPtype("");
     setUseLoc(false);
     setMatched(false);
+    first.current = true; // don't let the cleared filters fire a search
   }
 
   return (
@@ -105,7 +140,7 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
           <input
             value={brief}
             onChange={(e) => setBrief(e.target.value)}
-            placeholder="Describe the property a buyer wants…"
+            placeholder="Describe the property a buyer wants…  (press Enter)"
           />
         </form>
         <div className="topbar-spacer" />
@@ -114,31 +149,38 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
 
       <div className="body">
         <aside className="panel">
-          <div className="filters">
-            <select value={ptype} onChange={(e) => setPtype(e.target.value)}>
-              {TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t === "" ? "Any type" : t}
-                </option>
-              ))}
-            </select>
-            <input
-              type="number"
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(e.target.value)}
-              placeholder="Max £"
-            />
-            <input
-              type="number"
-              value={beds}
-              onChange={(e) => setBeds(e.target.value)}
-              placeholder="Beds (est.)"
-            />
-            <label className="near">
-              <input type="checkbox" checked={useLoc} onChange={(e) => setUseLoc(e.target.checked)} />
-              Near map
-            </label>
+          <div className="controls">
+            <div className="controls-title">Filters</div>
+            <div className="filters">
+              <select value={ptype} onChange={(e) => setPtype(e.target.value)}>
+                {TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t === "" ? "Any type" : t}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="number"
+                value={maxPrice}
+                onChange={(e) => setMaxPrice(e.target.value)}
+                placeholder="Max £"
+              />
+              <input
+                type="number"
+                value={beds}
+                onChange={(e) => setBeds(e.target.value)}
+                placeholder="Beds (est.)"
+              />
+              <label className="near">
+                <input type="checkbox" checked={useLoc} onChange={(e) => setUseLoc(e.target.checked)} />
+                Near map
+              </label>
+            </div>
+            <button className="btn block" onClick={search} disabled={loading}>
+              {loading ? "Searching…" : "Search"}
+            </button>
           </div>
+
           <div className="panel-head">
             <span className="panel-title">{matched ? "Matches" : "Listings"}</span>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -147,9 +189,6 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
                   Clear
                 </button>
               )}
-              <button className="btn" onClick={search} disabled={loading}>
-                {loading ? "…" : "Search"}
-              </button>
               <span className="count-pill">{rows.length}</span>
             </div>
           </div>

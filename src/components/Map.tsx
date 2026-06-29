@@ -9,6 +9,7 @@ export interface MapMarker {
   lng: number;
   lat: number;
   label?: string;
+  html?: string;
   color?: string;
 }
 
@@ -106,13 +107,17 @@ export default function Map({
       const el = document.createElement("div");
       el.className = "pin";
       el.style.background = m.color ?? "#2f6bff";
+      const popup =
+        m.html || m.label
+          ? new maplibregl.Popup({ offset: 16, closeButton: false, className: "domus-popup" })
+          : undefined;
+      if (popup) {
+        if (m.html) popup.setHTML(m.html);
+        else popup.setText(m.label!);
+      }
       const marker = new maplibregl.Marker({ element: el })
         .setLngLat([m.lng, m.lat])
-        .setPopup(
-          m.label
-            ? new maplibregl.Popup({ offset: 16, closeButton: false }).setText(m.label)
-            : undefined,
-        )
+        .setPopup(popup)
         .addTo(map);
       markerById.current[m.id] = marker;
       return marker;
