@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Map, { type MapMarker, type LngLat, type MapFocus } from "@/components/Map";
+import Map, { type MapMarker, type MapView, type MapFocus } from "@/components/Map";
 import ListingList, { type ListingRow } from "@/components/ListingList";
 import Logo from "@/components/Logo";
 import { categoryColor } from "@/lib/ui/category";
@@ -20,7 +20,7 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
   const [beds, setBeds] = useState("");
   const [ptype, setPtype] = useState("");
   const [useLoc, setUseLoc] = useState(false);
-  const [center, setCenter] = useState<LngLat>({ lng: -1.5, lat: 52.5 });
+  const [view, setView] = useState<MapView>({ lng: -1.5, lat: 52.5, radiusKm: 300 });
   const [loading, setLoading] = useState(false);
   const [matched, setMatched] = useState(false);
   const [focus, setFocus] = useState<MapFocus | null>(null);
@@ -59,7 +59,7 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
             bedrooms: beds ? Number(beds) : null,
             propertyType: ptype || null,
           },
-          location: useLoc ? { lat: center.lat, lng: center.lng, radiusKm: 50 } : null,
+          location: useLoc ? { lat: view.lat, lng: view.lng, radiusKm: view.radiusKm } : null,
           limit: 50,
         }),
       });
@@ -132,7 +132,7 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
               type="number"
               value={beds}
               onChange={(e) => setBeds(e.target.value)}
-              placeholder="Beds"
+              placeholder="Beds (est.)"
             />
             <label className="near">
               <input type="checkbox" checked={useLoc} onChange={(e) => setUseLoc(e.target.checked)} />
@@ -163,7 +163,7 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
               {markers.length} on map
             </div>
           </div>
-          <Map markers={markers} onMoveEnd={setCenter} focus={focus} />
+          <Map markers={markers} onMoveEnd={setView} focus={focus} />
         </section>
       </div>
     </div>

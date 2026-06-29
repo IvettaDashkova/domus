@@ -12,9 +12,28 @@ export interface MapMarker {
   color?: string;
 }
 
-export interface LngLat {
+export interface MapView {
   lng: number;
   lat: number;
+  radiusKm: number; // ~half-diagonal of the current viewport
+}
+
+function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6371;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLng = ((bLng - aLng) * Math.PI) / 180;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((aLat * Math.PI) / 180) *
+      Math.cos((bLat * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+}
+
+function viewOf(map: maplibregl.Map): MapView {
+  const c = map.getCenter();
+  const ne = map.getBounds().getNorthEast();
+  return { lng: c.lng, lat: c.lat, radiusKm: haversineKm(c.lat, c.lng, ne.lat, ne.lng) };
 }
 
 export interface MapFocus {
@@ -37,7 +56,7 @@ export default function Map({
   focus,
 }: {
   markers: MapMarker[];
-  onMoveEnd?: (c: LngLat) => void;
+  onMoveEnd?: (v: MapView) => void;
   focus?: MapFocus | null;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -64,11 +83,11 @@ export default function Map({
       return;
     }
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
-    map.on("load", () => setReady(true));
-    map.on("moveend", () => {
-      const c = map.getCenter();
-      onMoveEnd?.({ lng: c.lng, lat: c.lat });
+    map.on("load", () => {
+      setReady(true);
+      onMoveEnd?.(viewOf(map)); // seed the view so "Near map" works before any pan
     });
+    map.on("moveend", () => onMoveEnd?.(viewOf(map)));
     mapRef.current = map;
     return () => {
       map.remove();
