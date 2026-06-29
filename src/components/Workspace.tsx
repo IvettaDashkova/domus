@@ -11,6 +11,17 @@ export interface WorkspaceRow extends ListingRow {
   lat: number | null;
 }
 
+interface Brief {
+  propertyType: string;
+  minPrice: number | null;
+  maxPrice: number | null;
+  bedrooms: number | null;
+  location: string | null;
+  mustHaves: string[];
+  excludes: string[];
+  semanticBrief: string;
+}
+
 const TYPES = ["", "detached house", "semi-detached house", "terraced house", "flat"];
 
 function fmtPrice(p: number | null): string {
@@ -43,6 +54,38 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
   const [loading, setLoading] = useState(false);
   const [matched, setMatched] = useState(false);
   const [focus, setFocus] = useState<MapFocus | null>(null);
+
+  // Lead triage
+  const [triageOpen, setTriageOpen] = useState(false);
+  const [enquiry, setEnquiry] = useState("");
+  const [leadBrief, setLeadBrief] = useState<Brief | null>(null);
+  const [triaging, setTriaging] = useState(false);
+  const [triageError, setTriageError] = useState<string | null>(null);
+
+  async function triage() {
+    setTriaging(true);
+    setTriageError(null);
+    try {
+      const res = await fetch("/api/leads/triage", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ enquiry }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setTriageError(data.error ?? "triage failed");
+        return;
+      }
+      setLeadBrief(data.brief);
+      setRows((data.results ?? []).map((r: WorkspaceRow, i: number) => ({ ...r, rank: i + 1 })));
+      setMatched(true);
+      setTriageOpen(false);
+    } catch (e) {
+      setTriageError((e as Error).message);
+    } finally {
+      setTriaging(false);
+    }
+  }
 
   const markers: MapMarker[] = useMemo(
     () =>
@@ -116,6 +159,7 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
     setPtype("");
     setUseLoc(false);
     setMatched(false);
+    setLeadBrief(null);
     first.current = true; // don't let the cleared filters fire a search
   }
 
@@ -144,6 +188,9 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
           />
         </form>
         <div className="topbar-spacer" />
+        <button className="btn triage-btn" onClick={() => setTriageOpen(true)}>
+          ✦ Triage lead
+        </button>
         <div className="avatar">DA</div>
       </header>
 
@@ -192,6 +239,30 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
               <span className="count-pill">{rows.length}</span>
             </div>
           </div>
+          {leadBrief && (
+            <div className="brief">
+              <div className="brief-head">Extracted brief</div>
+              <div className="brief-chips">
+                {leadBrief.propertyType && leadBrief.propertyType !== "any" && (
+                  <span className="chip">{leadBrief.propertyType}</span>
+                )}
+                {leadBrief.bedrooms != null && <span className="chip">{leadBrief.bedrooms} bed</span>}
+                {(leadBrief.minPrice != null || leadBrief.maxPrice != null) && (
+                  <span className="chip">
+                    {leadBrief.minPrice != null ? `£${leadBrief.minPrice.toLocaleString()}` : "£0"}–
+                    {leadBrief.maxPrice != null ? `£${leadBrief.maxPrice.toLocaleString()}` : "∞"}
+                  </span>
+                )}
+                {leadBrief.location && <span className="chip">📍 {leadBrief.location}</span>}
+                {leadBrief.mustHaves.map((m) => (
+                  <span key={m} className="chip want">+ {m}</span>
+                ))}
+                {leadBrief.excludes.map((x) => (
+                  <span key={x} className="chip exclude">− {x}</span>
+                ))}
+              </div>
+            </div>
+          )}
           <ListingList listings={rows} onSelect={selectListing} selectedId={focus?.id} />
         </aside>
 
@@ -205,6 +276,32 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
           <Map markers={markers} onMoveEnd={setView} focus={focus} />
         </section>
       </div>
+
+      {triageOpen && (
+        <div className="modal-backdrop" onClick={() => !triaging && setTriageOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-title">Triage a lead enquiry</div>
+            <div className="modal-sub">
+              Paste a buyer&apos;s message — the LLM extracts a structured brief and matches listings.
+            </div>
+            <textarea
+              value={enquiry}
+              onChange={(e) => setEnquiry(e.target.value)}
+              rows={5}
+              placeholder="e.g. Hi, we're after a 3-bed semi in south Manchester under £300k with a garden — definitely not a flat or a new build."
+            />
+            {triageError && <div className="modal-err">{triageError}</div>}
+            <div className="modal-actions">
+              <button className="btn ghost" onClick={() => setTriageOpen(false)} disabled={triaging}>
+                Cancel
+              </button>
+              <button className="btn" onClick={triage} disabled={triaging || !enquiry.trim()}>
+                {triaging ? "Triaging…" : "Triage & match"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,21 +1,27 @@
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createGoogleGenerativeAI, type GoogleGenerativeAIProvider } from "@ai-sdk/google";
 
 /**
- * Gemini provider (free tier) via the Vercel AI SDK. Wired now, used from
- * Phase 3 (lead-triage extraction). Created lazily so a missing key never
- * breaks the build.
+ * Gemini provider (free tier) via the Vercel AI SDK. Created lazily so a
+ * missing key never breaks the build.
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let provider: any = null;
+let provider: GoogleGenerativeAIProvider | null = null;
 
-export function gemini() {
+/** Accept either the AI-SDK default name or a plain GEMINI_API_KEY. */
+export function geminiApiKey(): string {
+  return process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY || "";
+}
+
+export function gemini(): GoogleGenerativeAIProvider {
   if (!provider) {
-    provider = createGoogleGenerativeAI({
-      apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? "",
-    });
+    provider = createGoogleGenerativeAI({ apiKey: geminiApiKey() });
   }
   return provider;
 }
 
-export const DEFAULT_MODEL = "gemini-1.5-flash";
+export const DEFAULT_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+
+/** Convenience: the default chat/extraction model. */
+export function geminiModel() {
+  return gemini()(DEFAULT_MODEL);
+}

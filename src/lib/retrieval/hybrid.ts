@@ -33,6 +33,7 @@ export interface MatchParams {
   queryVec: number[] | null;
   filters?: MatchFilters;
   location?: MatchLocation | null;
+  excludes?: string[]; // negative filter: drop listings matching any term
   k?: number;
   candidateN?: number;
   limit?: number;
@@ -70,6 +71,7 @@ export async function hybridMatch(
   const lng = p.location?.lng ?? null;
   const lat = p.location?.lat ?? null;
   const radiusM = p.location?.radiusKm != null ? p.location.radiusKm * 1000 : null;
+  const excludes = (p.excludes ?? []).filter((e) => e.trim() !== "");
 
   return sql<MatchResult[]>`
     with base as (
@@ -85,6 +87,11 @@ export async function hybridMatch(
         and (
           ${hasLoc} = false or ${radiusM}::float is null
           or st_dwithin(geom, st_setsrid(st_makepoint(${lng}, ${lat}), 4326)::geography, ${radiusM})
+        )
+        and not exists (
+          select 1 from unnest(${excludes}::text[]) ex
+          where lower(coalesce(description, '')) like '%' || lower(ex) || '%'
+             or lower(coalesce(property_type, '')) like '%' || lower(ex) || '%'
         )
     ),
     dense as (

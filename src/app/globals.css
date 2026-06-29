@@ -358,6 +358,74 @@ a {
 .pop-meta { color: var(--muted); font-size: 12px; margin-top: 4px; }
 .pop-price { color: var(--accent); font-weight: 700; }
 
+/* ── lead triage ───────────────────────────────────────────────────────── */
+.triage-btn {
+  background: linear-gradient(135deg, var(--accent), #8a4dff);
+  white-space: nowrap;
+}
+
+.brief {
+  margin: 0 12px 6px;
+  padding: 11px 12px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(47, 107, 255, 0.25);
+  border-radius: 11px;
+}
+.brief-head {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.brief-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip.want { color: var(--pin-green); border-color: rgba(33, 193, 122, 0.3); background: rgba(33, 193, 122, 0.08); }
+.chip.exclude { color: var(--pin-red); border-color: rgba(255, 90, 95, 0.3); background: rgba(255, 90, 95, 0.08); }
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+}
+.modal {
+  width: min(560px, 92vw);
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+.modal-title { font-size: 17px; font-weight: 650; }
+.modal-sub { color: var(--muted); font-size: 13px; margin: 6px 0 14px; }
+.modal textarea {
+  width: 100%;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  padding: 12px;
+  resize: vertical;
+  outline: none;
+}
+.modal textarea:focus { border-color: var(--accent); }
+.modal-err {
+  color: var(--pin-red);
+  font-size: 13px;
+  margin-top: 10px;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
 /* ── map ───────────────────────────────────────────────────────────────── */
 .map-wrap {
   position: relative;
