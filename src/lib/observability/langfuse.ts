@@ -15,8 +15,12 @@ export function langfuse(): Langfuse | null {
     client = new Langfuse({
       secretKey: process.env.LANGFUSE_SECRET_KEY,
       publicKey: process.env.LANGFUSE_PUBLIC_KEY,
-      baseUrl: process.env.LANGFUSE_BASEURL ?? "https://cloud.langfuse.com",
+      baseUrl:
+        process.env.LANGFUSE_BASEURL ??
+        process.env.LANGFUSE_BASE_URL ??
+        "https://cloud.langfuse.com",
     });
+    client.on("error", (e: unknown) => console.error("[langfuse]", e));
   }
   return client;
 }
