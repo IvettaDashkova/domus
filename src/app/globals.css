@@ -491,6 +491,34 @@ a {
 .itin-addr { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .itin-leg { color: var(--faint); }
 
+/* ── valuation ─────────────────────────────────────────────────────────── */
+.val-estimate {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 14px 0 2px;
+}
+.val-range { color: var(--muted); font-size: 13px; }
+.val-meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+.val-conf.c0, .val-conf.c1 { color: var(--pin-red); border-color: rgba(255, 90, 95, 0.3); background: rgba(255, 90, 95, 0.08); }
+.val-conf.c2, .val-conf.c3 { color: var(--pin-amber); border-color: rgba(255, 176, 32, 0.3); background: rgba(255, 176, 32, 0.08); }
+.val-conf.c4, .val-conf.c5 { color: var(--pin-green); border-color: rgba(33, 193, 122, 0.3); background: rgba(33, 193, 122, 0.08); }
+
+.val-comps { margin-top: 6px; border-top: 1px solid var(--border); padding-top: 12px; }
+.val-comps-head {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--faint); font-weight: 700; margin-bottom: 8px;
+}
+.val-comp {
+  display: flex; align-items: center; gap: 10px; font-size: 12px;
+  padding: 5px 0; border-bottom: 1px solid var(--border);
+}
+.vc-price { font-weight: 700; width: 76px; }
+.vc-dist { color: var(--muted); width: 56px; font-variant-numeric: tabular-nums; }
+.vc-beds { color: var(--muted); width: 24px; }
+.vc-addr { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vc-w { color: var(--accent); font-weight: 600; }
+
 /* ── map ───────────────────────────────────────────────────────────────── */
 .map-wrap {
   position: relative;

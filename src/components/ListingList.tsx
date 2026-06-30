@@ -23,12 +23,14 @@ export default function ListingList({
   selectedId,
   onAddRoute,
   routeIds,
+  onValue,
 }: {
   listings: ListingRow[];
   onSelect?: (id: string) => void;
   selectedId?: string | null;
   onAddRoute?: (id: string) => void;
   routeIds?: Set<string>;
+  onValue?: (id: string) => void;
 }) {
   if (listings.length === 0) {
     return <div className="empty">No matches.</div>;
@@ -58,6 +60,18 @@ export default function ListingList({
               <span className="chip score" title="RRF match score">
                 {Number(l.score).toFixed(3)}
               </span>
+            )}
+            {onValue && (
+              <button
+                className="route-add"
+                title="Estimate value from comparable sales"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onValue(l.id);
+                }}
+              >
+                £ est
+              </button>
             )}
             {onAddRoute && (
               <button

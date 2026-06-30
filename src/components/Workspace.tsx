@@ -45,6 +45,30 @@ interface RoutePlanData {
 }
 
 const mins = (s: number) => `${Math.round(s / 60)}m`;
+const gbp = (n: number) => `£${Math.round(n).toLocaleString()}`;
+
+interface CompW {
+  id: string;
+  address: string | null;
+  price: number;
+  bedrooms: number | null;
+  property_type: string | null;
+  distanceM: number;
+  weight: number;
+}
+interface ValuationData {
+  subject: { address: string | null; propertyType: string | null; bedrooms: number | null };
+  estimate: number;
+  low: number;
+  high: number;
+  confidence: number;
+  dispersion: number;
+  compCount: number;
+  radiusKm: number;
+  comps: CompW[];
+  actual: number | null;
+  errorPct: number | null;
+}
 
 const TYPES = ["", "detached house", "semi-detached house", "terraced house", "flat"];
 
@@ -108,6 +132,31 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
       setTriageError((e as Error).message);
     } finally {
       setTriaging(false);
+    }
+  }
+
+  // Valuation
+  const [valuation, setValuation] = useState<ValuationData | null>(null);
+  const [valuing, setValuing] = useState(false);
+  const [valError, setValError] = useState<string | null>(null);
+
+  async function valuate(listingId: string) {
+    setValuing(true);
+    setValError(null);
+    setValuation(null);
+    try {
+      const res = await fetch("/api/valuation", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ listingId }),
+      });
+      const data = await res.json();
+      if (!res.ok) setValError(data.error ?? "valuation failed");
+      else setValuation(data);
+    } catch (e) {
+      setValError((e as Error).message);
+    } finally {
+      setValuing(false);
     }
   }
 
@@ -399,6 +448,7 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
             selectedId={focus?.id}
             onAddRoute={toggleRoute}
             routeIds={new Set(routeIds)}
+            onValue={valuate}
           />
         </aside>
 
@@ -435,6 +485,76 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
                 {triaging ? "Triaging…" : "Triage & match"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {(valuing || valuation || valError) && (
+        <div
+          className="modal-backdrop"
+          onClick={() => {
+            if (!valuing) {
+              setValuation(null);
+              setValError(null);
+            }
+          }}
+        >
+          <div className="modal val-modal" onClick={(e) => e.stopPropagation()}>
+            {valuing && <div className="modal-title">Valuing…</div>}
+            {valError && (
+              <>
+                <div className="modal-title">Valuation</div>
+                <div className="modal-err">{valError}</div>
+                <div className="modal-actions">
+                  <button className="btn" onClick={() => setValError(null)}>
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
+            {valuation && (
+              <>
+                <div className="modal-title">Estimated value</div>
+                <div className="modal-sub">
+                  {valuation.subject.address} · {valuation.subject.propertyType} ·{" "}
+                  {valuation.subject.bedrooms} bed
+                </div>
+                <div className="val-estimate">{gbp(valuation.estimate)}</div>
+                <div className="val-range">
+                  range {gbp(valuation.low)} – {gbp(valuation.high)}
+                </div>
+                <div className="val-meta">
+                  <span className={`chip val-conf c${Math.round(valuation.confidence * 5)}`}>
+                    confidence {Math.round(valuation.confidence * 100)}%
+                  </span>
+                  <span className="chip">
+                    {valuation.compCount} comps · {valuation.radiusKm} km
+                  </span>
+                  {valuation.actual != null && (
+                    <span className="chip">
+                      actual {gbp(valuation.actual)} · err {valuation.errorPct}%
+                    </span>
+                  )}
+                </div>
+                <div className="val-comps">
+                  <div className="val-comps-head">Comparable sales (weighted)</div>
+                  {valuation.comps.slice(0, 8).map((c) => (
+                    <div key={c.id} className="val-comp">
+                      <span className="vc-price">{gbp(c.price)}</span>
+                      <span className="vc-dist">{Math.round(c.distanceM)} m</span>
+                      <span className="vc-beds">{c.bedrooms ?? "?"}b</span>
+                      <span className="vc-addr">{c.address}</span>
+                      <span className="vc-w">{(c.weight * 100).toFixed(0)}%</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="modal-actions">
+                  <button className="btn" onClick={() => setValuation(null)}>
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
