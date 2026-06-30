@@ -1,0 +1,14 @@
+# Render Blueprint: self-hosted OSRM routing service for Domus.
+# New → Blueprints → connect this repo → Apply. Then set OSRM_URL in Vercel to
+# the service's URL so /api/route/plan works in production.
+services:
+  - type: web
+    name: domus-osrm
+    runtime: docker
+    region: frankfurt
+    plan: free
+    rootDir: osrm-render
+    dockerfilePath: ./Dockerfile
+    autoDeploy: false
+    # OSRM has no /health endpoint; /nearest on a London coord returns 200.
+    healthCheckPath: /nearest/v1/driving/-0.1278,51.5074
