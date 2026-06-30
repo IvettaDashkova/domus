@@ -16,6 +16,17 @@ const nextConfig: NextConfig = {
     "pg-boss",
     "postgres",
   ],
+  // Force the onnxruntime-node native libs (.so) into the serverless function
+  // bundle — file tracing misses them (loaded via a dynamic path), which causes
+  // "libonnxruntime.so.1: cannot open shared object file" on Vercel.
+  outputFileTracingIncludes: {
+    "/api/match": [
+      "./node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin/**/linux/x64/*",
+    ],
+    "/api/leads/triage": [
+      "./node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin/**/linux/x64/*",
+    ],
+  },
 };
 
 export default nextConfig;

@@ -11,7 +11,11 @@ let extractor: any = null;
 
 async function getExtractor() {
   if (!extractor) {
-    const { pipeline } = await import("@huggingface/transformers");
+    const { pipeline, env } = await import("@huggingface/transformers");
+    if (process.env.VERCEL) {
+      env.cacheDir = "/tmp/hf-cache";
+      env.allowLocalModels = false;
+    }
     extractor = await pipeline("image-feature-extraction", IMAGE_EMBED_MODEL);
   }
   return extractor;

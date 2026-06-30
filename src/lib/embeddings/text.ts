@@ -10,7 +10,12 @@ let extractor: any = null;
 
 async function getExtractor() {
   if (!extractor) {
-    const { pipeline } = await import("@huggingface/transformers");
+    const { pipeline, env } = await import("@huggingface/transformers");
+    if (process.env.VERCEL) {
+      // Serverless fs is read-only except /tmp.
+      env.cacheDir = "/tmp/hf-cache";
+      env.allowLocalModels = false;
+    }
     extractor = await pipeline("feature-extraction", TEXT_EMBED_MODEL);
   }
   return extractor;
