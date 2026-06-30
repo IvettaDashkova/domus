@@ -1,0 +1,6 @@
+# Large/dev-only artifacts that must not be uploaded to Vercel.
+osrm
+db/seed/data
+.git
+.idea
+.vscode
