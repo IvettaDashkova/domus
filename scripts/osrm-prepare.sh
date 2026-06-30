@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Prepare a SMALL OSM extract for OSRM (Phase 0: prove one /route call).
-# Isle of Wight (~3 MB) — tiny, fast to process. Real coverage comes in the
-# routing phase. Runs the MLD pipeline: extract -> partition -> customize.
+# Prepare an OSM extract for OSRM. Default: Greater London (covers the bulk of
+# the demo listings). Override with REGION_URL / REGION_BASE for another area.
+# Runs the MLD pipeline: extract -> partition -> customize.
 set -euo pipefail
 
 DATA_DIR="$(cd "$(dirname "$0")/.." && pwd)/osrm/data"
-PBF_URL="https://download.geofabrik.de/europe/united-kingdom/england/isle-of-wight-latest.osm.pbf"
-PBF="isle-of-wight-latest.osm.pbf"
-BASE="isle-of-wight-latest"
+PBF_URL="${REGION_URL:-https://download.geofabrik.de/europe/united-kingdom/england/greater-london-latest.osm.pbf}"
+BASE="${REGION_BASE:-greater-london-latest}"
+PBF="$BASE.osm.pbf"
 IMG="osrm/osrm-backend:latest"
 
 mkdir -p "$DATA_DIR"

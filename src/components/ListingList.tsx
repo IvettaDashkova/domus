@@ -21,10 +21,14 @@ export default function ListingList({
   listings,
   onSelect,
   selectedId,
+  onAddRoute,
+  routeIds,
 }: {
   listings: ListingRow[];
   onSelect?: (id: string) => void;
   selectedId?: string | null;
+  onAddRoute?: (id: string) => void;
+  routeIds?: Set<string>;
 }) {
   if (listings.length === 0) {
     return <div className="empty">No matches.</div>;
@@ -54,6 +58,18 @@ export default function ListingList({
               <span className="chip score" title="RRF match score">
                 {Number(l.score).toFixed(3)}
               </span>
+            )}
+            {onAddRoute && (
+              <button
+                className={`route-add${routeIds?.has(l.id) ? " on" : ""}`}
+                title="Add to viewing route"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddRoute(l.id);
+                }}
+              >
+                {routeIds?.has(l.id) ? "✓ route" : "+ route"}
+              </button>
             )}
           </div>
         </article>

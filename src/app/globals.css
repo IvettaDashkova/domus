@@ -426,6 +426,71 @@ a {
   margin-top: 16px;
 }
 
+/* ── viewing route ─────────────────────────────────────────────────────── */
+.route-add {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--muted);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  cursor: pointer;
+}
+.route-add:hover { border-color: var(--accent); color: var(--accent); }
+.route-add.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.route-panel {
+  margin: 12px 12px 4px;
+  padding: 12px;
+  background: var(--card);
+  border: 1px solid rgba(47, 107, 255, 0.3);
+  border-radius: 12px;
+}
+.route-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 650;
+  margin-bottom: 10px;
+}
+.route-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+.route-opts label { display: inline-flex; align-items: center; gap: 5px; }
+.route-opts input[type="time"],
+.route-opts input[type="number"] {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 7px;
+}
+.route-note { font-size: 11px; color: var(--faint); margin: 8px 0 2px; }
+
+.itin { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
+.itin-saved { font-size: 12px; color: var(--pin-green); font-weight: 600; margin-bottom: 8px; }
+.itin-row { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 4px 0; }
+.itin-row.late { color: var(--pin-red); }
+.itin-num {
+  width: 18px; height: 18px; display: grid; place-items: center;
+  border-radius: 999px; background: var(--accent); color: #fff;
+  font-size: 10px; font-weight: 700; flex-shrink: 0;
+}
+.itin-time { color: var(--muted); font-variant-numeric: tabular-nums; }
+.itin-addr { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.itin-leg { color: var(--faint); }
+
 /* ── map ───────────────────────────────────────────────────────────────── */
 .map-wrap {
   position: relative;

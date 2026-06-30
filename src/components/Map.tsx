@@ -44,6 +44,11 @@ export interface MapFocus {
   key: number; // changes on every click so re-selecting the same pin refocuses
 }
 
+export interface RouteLine {
+  type: "LineString";
+  coordinates: [number, number][];
+}
+
 const DARK_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
 /**
@@ -55,10 +60,12 @@ export default function Map({
   markers,
   onMoveEnd,
   focus,
+  routeLine,
 }: {
   markers: MapMarker[];
   onMoveEnd?: (v: MapView) => void;
   focus?: MapFocus | null;
+  routeLine?: RouteLine | null;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -123,6 +130,39 @@ export default function Map({
       return marker;
     });
   }, [markers, ready]);
+
+  // Draw / update the optimized route polyline.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const data = routeLine
+      ? { type: "Feature" as const, geometry: routeLine, properties: {} }
+      : { type: "FeatureCollection" as const, features: [] };
+    const src = map.getSource("route") as maplibregl.GeoJSONSource | undefined;
+    if (src) {
+      src.setData(data);
+    } else {
+      map.addSource("route", { type: "geojson", data });
+      map.addLayer({
+        id: "route-line",
+        type: "line",
+        source: "route",
+        paint: { "line-color": "#2f6bff", "line-width": 4, "line-opacity": 0.85 },
+        layout: { "line-cap": "round", "line-join": "round" },
+      });
+    }
+    if (routeLine && routeLine.coordinates.length) {
+      const lons = routeLine.coordinates.map((c) => c[0]);
+      const lats = routeLine.coordinates.map((c) => c[1]);
+      map.fitBounds(
+        [
+          [Math.min(...lons), Math.min(...lats)],
+          [Math.max(...lons), Math.max(...lats)],
+        ],
+        { padding: 70, duration: 800 },
+      );
+    }
+  }, [routeLine, ready]);
 
   // Fly to a clicked listing and open its popup.
   useEffect(() => {

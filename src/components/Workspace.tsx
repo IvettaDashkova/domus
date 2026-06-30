@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Map, { type MapMarker, type MapView, type MapFocus } from "@/components/Map";
+import Map, {
+  type MapMarker,
+  type MapView,
+  type MapFocus,
+  type RouteLine,
+} from "@/components/Map";
 import ListingList, { type ListingRow } from "@/components/ListingList";
 import Logo from "@/components/Logo";
 import { categoryColor } from "@/lib/ui/category";
@@ -21,6 +26,25 @@ interface Brief {
   excludes: string[];
   semanticBrief: string;
 }
+
+interface PlanStop {
+  position: number;
+  listingId: string | null;
+  address: string | null;
+  arrival: string;
+  depart: string;
+  legFromPrevSec: number;
+  late: boolean;
+}
+interface RoutePlanData {
+  stops: PlanStop[];
+  geojson: RouteLine;
+  optimizedDriveSec: number;
+  naiveDriveSec: number;
+  savedSec: number;
+}
+
+const mins = (s: number) => `${Math.round(s / 60)}m`;
 
 const TYPES = ["", "detached house", "semi-detached house", "terraced house", "flat"];
 
@@ -84,6 +108,57 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
       setTriageError((e as Error).message);
     } finally {
       setTriaging(false);
+    }
+  }
+
+  // Viewing route
+  const [routeIds, setRouteIds] = useState<string[]>([]);
+  const [plan, setPlan] = useState<RoutePlanData | null>(null);
+  const [routeLine, setRouteLine] = useState<RouteLine | null>(null);
+  const [startTime, setStartTime] = useState("09:00");
+  const [dwell, setDwell] = useState("30");
+  const [returnToStart, setReturnToStart] = useState(true);
+  const [optimizing, setOptimizing] = useState(false);
+  const [routeError, setRouteError] = useState<string | null>(null);
+
+  function toggleRoute(id: string) {
+    setRouteIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+    setPlan(null);
+    setRouteLine(null);
+  }
+  function clearRoute() {
+    setRouteIds([]);
+    setPlan(null);
+    setRouteLine(null);
+    setRouteError(null);
+  }
+  async function optimizeRoute() {
+    setOptimizing(true);
+    setRouteError(null);
+    try {
+      const res = await fetch("/api/route/plan", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          start: { lng: view.lng, lat: view.lat },
+          listingIds: routeIds,
+          startTime,
+          dwellMin: Number(dwell) || 30,
+          returnToStart,
+          dayEnd: "17:00",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setRouteError(data.error ?? "route failed");
+        return;
+      }
+      setPlan(data);
+      setRouteLine(data.geojson);
+    } catch (e) {
+      setRouteError((e as Error).message);
+    } finally {
+      setOptimizing(false);
     }
   }
 
@@ -196,6 +271,61 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
 
       <div className="body">
         <aside className="panel">
+          {routeIds.length > 0 && (
+            <div className="route-panel">
+              <div className="route-head">
+                <span>🚗 Route · {routeIds.length} stop{routeIds.length > 1 ? "s" : ""}</span>
+                <button className="btn ghost" onClick={clearRoute}>
+                  Clear
+                </button>
+              </div>
+              <div className="route-opts">
+                <label>
+                  Start
+                  <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+                </label>
+                <label>
+                  Dwell
+                  <input
+                    type="number"
+                    value={dwell}
+                    onChange={(e) => setDwell(e.target.value)}
+                    style={{ width: 46 }}
+                  />
+                  m
+                </label>
+                <label className="near">
+                  <input
+                    type="checkbox"
+                    checked={returnToStart}
+                    onChange={(e) => setReturnToStart(e.target.checked)}
+                  />
+                  round trip
+                </label>
+              </div>
+              <div className="route-note">Start = map centre</div>
+              <button className="btn block" onClick={optimizeRoute} disabled={optimizing}>
+                {optimizing ? "Optimizing…" : "Optimize route"}
+              </button>
+              {routeError && <div className="modal-err">{routeError}</div>}
+              {plan && (
+                <div className="itin">
+                  <div className="itin-saved">
+                    Saved {mins(plan.savedSec)} · {mins(plan.optimizedDriveSec)} drive (vs{" "}
+                    {mins(plan.naiveDriveSec)})
+                  </div>
+                  {plan.stops.map((s) => (
+                    <div key={s.position} className={`itin-row${s.late ? " late" : ""}`}>
+                      <span className="itin-num">{s.position}</span>
+                      <span className="itin-time">{s.arrival}</span>
+                      <span className="itin-addr">{s.address}</span>
+                      {s.position > 0 && <span className="itin-leg">+{mins(s.legFromPrevSec)}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <div className="controls">
             <div className="controls-title">Filters</div>
             <div className="filters">
@@ -263,7 +393,13 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
               </div>
             </div>
           )}
-          <ListingList listings={rows} onSelect={selectListing} selectedId={focus?.id} />
+          <ListingList
+            listings={rows}
+            onSelect={selectListing}
+            selectedId={focus?.id}
+            onAddRoute={toggleRoute}
+            routeIds={new Set(routeIds)}
+          />
         </aside>
 
         <section className="panel map-wrap">
@@ -273,7 +409,7 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
               {markers.length} on map
             </div>
           </div>
-          <Map markers={markers} onMoveEnd={setView} focus={focus} />
+          <Map markers={markers} onMoveEnd={setView} focus={focus} routeLine={routeLine} />
         </section>
       </div>
 
