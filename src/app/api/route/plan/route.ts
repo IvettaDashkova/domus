@@ -1,24 +1,15 @@
 import { NextResponse } from "next/server";
+import { parseBody, routePlanBody } from "@/lib/api/validate";
 
 // OSRM + DB: dynamic, Node, lazy init.
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-interface Body {
-  listingIds?: string[];
-  start?: { lng: number; lat: number };
-  startTime?: string;
-  dwellMin?: number;
-  returnToStart?: boolean;
-  dayEnd?: string;
-}
-
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as Body;
-    if (!body.listingIds?.length || !body.start) {
-      return NextResponse.json({ error: "listingIds and start required" }, { status: 400 });
-    }
+    const parsed = await parseBody(req, routePlanBody);
+    if ("response" in parsed) return parsed.response;
+    const body = parsed.data;
 
     const { getAdminDb } = await import("@/lib/db/client");
     const { withTenant } = await import("@/lib/db/tenant");

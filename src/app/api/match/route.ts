@@ -1,24 +1,15 @@
 import { NextResponse } from "next/server";
+import { parseBody, matchBody } from "@/lib/api/validate";
 
 // Embeds + DB: must be dynamic + Node, with lazy init.
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-interface MatchBody {
-  brief?: string;
-  filters?: {
-    minPrice?: number | null;
-    maxPrice?: number | null;
-    bedrooms?: number | null;
-    propertyType?: string | null;
-  };
-  location?: { lat: number; lng: number; radiusKm?: number | null } | null;
-  limit?: number;
-}
-
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as MatchBody;
+    const parsed = await parseBody(req, matchBody);
+    if ("response" in parsed) return parsed.response;
+    const body = parsed.data;
     const brief = (body.brief ?? "").trim();
 
     const { getAdminDb } = await import("@/lib/db/client");

@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
+import { parseBody, rerunBody } from "@/lib/api/validate";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    const { leadId } = (await req.json()) as { leadId?: string };
-    if (!leadId) return NextResponse.json({ error: "leadId required" }, { status: 400 });
+    const parsed = await parseBody(req, rerunBody);
+    if ("response" in parsed) return parsed.response;
+    const { leadId } = parsed.data;
 
     const { getAdminDb } = await import("@/lib/db/client");
     const { withTenant } = await import("@/lib/db/tenant");

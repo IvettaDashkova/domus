@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    name: typecheck · lint · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      # DB-touching routes are force-dynamic + lazy, so build needs no DATABASE_URL.
+      - run: pnpm build
+
+  db:
+    name: migrations · RLS security audit
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/domus
+      APP_DATABASE_URL: postgres://domus_app:domus_app@localhost:5432/domus
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start Postgres (PostGIS + pgvector + pg_trgm)
+        run: |
+          docker build -t domus-db ./db
+          docker run -d --name db \
+            -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=domus \
+            -p 5432:5432 domus-db
+          for i in $(seq 1 30); do
+            docker exec db pg_isready -U postgres -d domus && break
+            sleep 2
+          done
+      - name: Apply migrations
+        run: pnpm db:migrate
+      - name: Security audit (RLS isolation + role privileges)
+        run: pnpm security:audit

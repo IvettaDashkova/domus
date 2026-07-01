@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
+import { parseBody, visualSearchBody } from "@/lib/api/validate";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    const { query } = (await req.json()) as { query?: string };
-    const q = (query ?? "").trim();
-    if (!q) return NextResponse.json({ error: "query required" }, { status: 400 });
+    const parsed = await parseBody(req, visualSearchBody);
+    if ("response" in parsed) return parsed.response;
+    const q = parsed.data.query.trim();
 
     const { getAdminDb } = await import("@/lib/db/client");
     const { withTenant } = await import("@/lib/db/tenant");

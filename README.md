@@ -1,5 +1,7 @@
 # Domus
 
+[![CI](https://github.com/IvettaDashkova/domus/actions/workflows/ci.yml/badge.svg)](https://github.com/IvettaDashkova/domus/actions/workflows/ci.yml)
+
 Internal operations tool for a real-estate agency — lead triage, smart property
 matching on a map, viewing-route planning, comps/valuation, listing enrichment.
 Built on open data only. Real-estate instantiation of the Locus geo-AI template.

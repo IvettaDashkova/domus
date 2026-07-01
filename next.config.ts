@@ -7,6 +7,20 @@ const root = dirname(fileURLToPath(import.meta.url));
 const nextConfig: NextConfig = {
   // Pin the workspace root — this repo sits alongside other lockfiles.
   turbopack: { root },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "X-DNS-Prefetch-Control", value: "on" },
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
+        ],
+      },
+    ];
+  },
   // Native/heavy server-only deps must NOT be bundled by the build.
   // They are loaded lazily inside server handlers and scripts.
   serverExternalPackages: [
