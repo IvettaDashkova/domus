@@ -49,6 +49,12 @@ export interface RouteLine {
   coordinates: [number, number][];
 }
 
+export interface RouteStop {
+  lng: number;
+  lat: number;
+  n: number; // 0 = start, 1..N = viewings
+}
+
 const DARK_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
 /**
@@ -61,16 +67,21 @@ export default function Map({
   onMoveEnd,
   focus,
   routeLine,
+  routeStops,
+  highlightId,
 }: {
   markers: MapMarker[];
   onMoveEnd?: (v: MapView) => void;
   focus?: MapFocus | null;
   routeLine?: RouteLine | null;
+  routeStops?: RouteStop[] | null;
+  highlightId?: string | null;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markerObjs = useRef<maplibregl.Marker[]>([]);
   const markerById = useRef<Record<string, maplibregl.Marker>>({});
+  const routeMarkerObjs = useRef<maplibregl.Marker[]>([]);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -163,6 +174,26 @@ export default function Map({
       );
     }
   }, [routeLine, ready]);
+
+  // Numbered route-stop markers (in visiting order).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    for (const m of routeMarkerObjs.current) m.remove();
+    routeMarkerObjs.current = (routeStops ?? []).map((s) => {
+      const el = document.createElement("div");
+      el.className = "pin-num";
+      el.textContent = s.n === 0 ? "S" : String(s.n);
+      return new maplibregl.Marker({ element: el }).setLngLat([s.lng, s.lat]).addTo(map);
+    });
+  }, [routeStops, ready]);
+
+  // Hover sync: highlight the pin for the hovered card.
+  useEffect(() => {
+    for (const [id, m] of Object.entries(markerById.current)) {
+      m.getElement().classList.toggle("pin-hi", id === highlightId);
+    }
+  }, [highlightId, markers]);
 
   // Fly to a clicked listing and open its popup.
   useEffect(() => {

@@ -119,11 +119,89 @@ a {
 /* ── body split ────────────────────────────────────────────────────────── */
 .body {
   display: grid;
-  grid-template-columns: 380px 1fr;
+  grid-template-columns: 52px 380px 1fr;
   gap: 16px;
   padding: 16px;
   min-height: 0;
 }
+
+/* ── nav rail ───────────────────────────────────────────────────────────── */
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.rail-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 18px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.rail-btn:hover { color: var(--text); border-color: var(--border-strong); }
+.rail-btn.on { background: var(--accent-soft); color: var(--accent); border-color: rgba(47, 107, 255, 0.3); }
+
+/* ── detail drawer ──────────────────────────────────────────────────────── */
+.drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 360px;
+  max-width: 92%;
+  background: var(--bg-elev);
+  border-left: 1px solid var(--border-strong);
+  box-shadow: -14px 0 44px rgba(0, 0, 0, 0.45);
+  z-index: 10;
+  overflow-y: auto;
+  border-radius: var(--radius) 0 0 var(--radius);
+}
+.drawer-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(12, 14, 19, 0.7);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  cursor: pointer;
+}
+.drawer-photo {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  display: block;
+  border-radius: var(--radius) 0 0 0;
+}
+.drawer-body { padding: 16px; }
+.drawer-price { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+.drawer-addr { color: var(--muted); font-size: 14px; margin: 4px 0 12px; }
+.drawer-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
+.drawer-actions .btn { width: 100%; }
+
+/* ── lead inbox ─────────────────────────────────────────────────────────── */
+.lead-card { cursor: pointer; }
+.lead-enquiry {
+  font-size: 13px;
+  line-height: 1.45;
+  margin-bottom: 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.lead-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+.lead-open { font-size: 12px; color: var(--accent); font-weight: 600; }
 
 .panel {
   background: var(--bg-elev);
@@ -603,6 +681,25 @@ a {
   border-radius: 999px;
   border: 2.5px solid #fff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  transition: box-shadow 0.12s;
+}
+.pin-hi {
+  box-shadow: 0 0 0 4px rgba(47, 107, 255, 0.55), 0 2px 10px rgba(0, 0, 0, 0.6);
+  z-index: 3;
+}
+.pin-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
   cursor: pointer;
 }
 

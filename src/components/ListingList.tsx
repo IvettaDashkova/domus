@@ -27,6 +27,7 @@ export default function ListingList({
   routeIds,
   onValue,
   onSimilar,
+  onHover,
 }: {
   listings: ListingRow[];
   onSelect?: (id: string) => void;
@@ -35,6 +36,7 @@ export default function ListingList({
   routeIds?: Set<string>;
   onValue?: (id: string) => void;
   onSimilar?: (id: string) => void;
+  onHover?: (id: string | null) => void;
 }) {
   if (listings.length === 0) {
     return <div className="empty">No matches.</div>;
@@ -46,6 +48,8 @@ export default function ListingList({
           key={l.id}
           className={`card${l.id === selectedId ? " selected" : ""}`}
           onClick={() => onSelect?.(l.id)}
+          onMouseEnter={() => onHover?.(l.id)}
+          onMouseLeave={() => onHover?.(null)}
         >
           {l.image_url && (
             // eslint-disable-next-line @next/next/no-img-element

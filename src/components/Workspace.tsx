@@ -6,8 +6,11 @@ import Map, {
   type MapView,
   type MapFocus,
   type RouteLine,
+  type RouteStop,
 } from "@/components/Map";
 import ListingList, { type ListingRow } from "@/components/ListingList";
+import LeadInbox, { type LeadRow } from "@/components/LeadInbox";
+import DetailDrawer from "@/components/DetailDrawer";
 import Logo from "@/components/Logo";
 import { categoryColor } from "@/lib/ui/category";
 
@@ -31,6 +34,8 @@ interface PlanStop {
   position: number;
   listingId: string | null;
   address: string | null;
+  lng: number;
+  lat: number;
   arrival: string;
   depart: string;
   legFromPrevSec: number;
@@ -103,6 +108,46 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
   const [loading, setLoading] = useState(false);
   const [matched, setMatched] = useState(false);
   const [focus, setFocus] = useState<MapFocus | null>(null);
+
+  // Nav + leads inbox + detail drawer + hover sync
+  const [nav, setNav] = useState<"discover" | "leads">("discover");
+  const [leads, setLeads] = useState<LeadRow[]>([]);
+  const [leadsLoading, setLeadsLoading] = useState(false);
+  const [openingLead, setOpeningLead] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+
+  async function goLeads() {
+    setNav("leads");
+    setLeadsLoading(true);
+    try {
+      const res = await fetch("/api/leads");
+      const data = await res.json();
+      setLeads(data.leads ?? []);
+    } finally {
+      setLeadsLoading(false);
+    }
+  }
+
+  async function openLead(id: string) {
+    setOpeningLead(id);
+    try {
+      const res = await fetch("/api/leads/rerun", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ leadId: id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setLeadBrief(data.brief);
+        setRows((data.results ?? []).map((r: WorkspaceRow, i: number) => ({ ...r, rank: i + 1 })));
+        setMatched(true);
+        setNav("discover");
+      }
+    } finally {
+      setOpeningLead(null);
+    }
+  }
 
   // Lead triage
   const [triageOpen, setTriageOpen] = useState(false);
@@ -296,7 +341,13 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
     if (row?.lng != null && row?.lat != null) {
       setFocus({ id, lng: row.lng, lat: row.lat, key: Date.now() });
     }
+    setDetailId(id);
   }
+
+  const routeStops: RouteStop[] = plan
+    ? plan.stops.map((s) => ({ lng: s.lng, lat: s.lat, n: s.position }))
+    : [];
+  const detailRow = detailId ? rows.find((r) => r.id === detailId) ?? null : null;
 
   function reset() {
     setRows(initial);
@@ -354,6 +405,37 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
       </header>
 
       <div className="body">
+        <nav className="rail">
+          <button
+            className={`rail-btn${nav === "discover" ? " on" : ""}`}
+            onClick={() => setNav("discover")}
+            title="Discover"
+          >
+            ◎
+          </button>
+          <button
+            className={`rail-btn${nav === "leads" ? " on" : ""}`}
+            onClick={goLeads}
+            title="Leads"
+          >
+            ✉
+          </button>
+        </nav>
+
+        {nav === "leads" ? (
+          <aside className="panel">
+            <div className="panel-head">
+              <span className="panel-title">Lead inbox</span>
+              <span className="count-pill">{leads.length}</span>
+            </div>
+            <LeadInbox
+              leads={leads}
+              loading={leadsLoading}
+              onOpen={openLead}
+              openingId={openingLead}
+            />
+          </aside>
+        ) : (
         <aside className="panel">
           {routeIds.length > 0 && (
             <div className="route-panel">
@@ -485,8 +567,10 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
             routeIds={new Set(routeIds)}
             onValue={valuate}
             onSimilar={similar}
+            onHover={setHoveredId}
           />
         </aside>
+        )}
 
         <section className="panel map-wrap">
           <div className="map-overlay">
@@ -495,7 +579,27 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
               {markers.length} on map
             </div>
           </div>
-          <Map markers={markers} onMoveEnd={setView} focus={focus} routeLine={routeLine} />
+          <Map
+            markers={markers}
+            onMoveEnd={setView}
+            focus={focus}
+            routeLine={routeLine}
+            routeStops={routeStops}
+            highlightId={hoveredId}
+          />
+          {detailRow && (
+            <DetailDrawer
+              listing={detailRow}
+              onClose={() => setDetailId(null)}
+              onValue={valuate}
+              onSimilar={(id) => {
+                setDetailId(null);
+                similar(id);
+              }}
+              onAddRoute={toggleRoute}
+              inRoute={routeIds.includes(detailRow.id)}
+            />
+          )}
         </section>
       </div>
 
