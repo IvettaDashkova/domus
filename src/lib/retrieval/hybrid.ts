@@ -45,6 +45,8 @@ export interface MatchResult {
   price: number | null;
   bedrooms: number | null;
   property_type: string | null;
+  image_url: string | null;
+  tags: string[] | null;
   lng: number | null;
   lat: number | null;
   score: number;
@@ -76,7 +78,7 @@ export async function hybridMatch(
   return sql<MatchResult[]>`
     with base as (
       select id, address, price, bedrooms, property_type, description, geom,
-             text_embedding, created_at,
+             text_embedding, created_at, image_url, tags,
              st_x(geom::geometry) as lng, st_y(geom::geometry) as lat
       from listings
       where status = 'enriched'
@@ -117,7 +119,8 @@ export async function hybridMatch(
       order by geom <-> st_setsrid(st_makepoint(${lng}, ${lat}), 4326)::geography
       limit ${candN}
     )
-    select b.id, b.address, b.price, b.bedrooms, b.property_type, b.lng, b.lat,
+    select b.id, b.address, b.price, b.bedrooms, b.property_type,
+           b.image_url, b.tags, b.lng, b.lat,
            coalesce(1.0/(${k} + d.rnk), 0)
              + coalesce(1.0/(${k} + l.rnk), 0)
              + coalesce(1.0/(${k} + s.rnk), 0) as score,

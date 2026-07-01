@@ -24,7 +24,9 @@
     "evals": "tsx evals/run.ts",
     "osrm:prepare": "bash scripts/osrm-prepare.sh",
     "evals:hybrid": "tsx evals/hybrid.ts",
-    "evals:avm": "tsx evals/avm.ts"
+    "evals:avm": "tsx evals/avm.ts",
+    "fetch:photos": "tsx scripts/fetch-photos.ts",
+    "enrich:images": "tsx scripts/enrich-images.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.1",

@@ -6,6 +6,8 @@ export interface ListingRow {
   price: number | null;
   bedrooms: number | null;
   property_type: string | null;
+  image_url?: string | null;
+  tags?: string[] | null;
   score?: number | null;
   rank?: number | null;
 }
@@ -24,6 +26,7 @@ export default function ListingList({
   onAddRoute,
   routeIds,
   onValue,
+  onSimilar,
 }: {
   listings: ListingRow[];
   onSelect?: (id: string) => void;
@@ -31,6 +34,7 @@ export default function ListingList({
   onAddRoute?: (id: string) => void;
   routeIds?: Set<string>;
   onValue?: (id: string) => void;
+  onSimilar?: (id: string) => void;
 }) {
   if (listings.length === 0) {
     return <div className="empty">No matches.</div>;
@@ -43,6 +47,10 @@ export default function ListingList({
           className={`card${l.id === selectedId ? " selected" : ""}`}
           onClick={() => onSelect?.(l.id)}
         >
+          {l.image_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className="card-photo" src={l.image_url} alt="" loading="lazy" />
+          )}
           <div className="card-top">
             <div className="card-addr">
               {l.rank != null && <span className="rank">{l.rank}</span>}
@@ -62,30 +70,32 @@ export default function ListingList({
               </span>
             )}
             {onValue && (
-              <button
-                className="route-add"
-                title="Estimate value from comparable sales"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onValue(l.id);
-                }}
-              >
+              <button className="route-add" title="Estimate value" onClick={(e) => { e.stopPropagation(); onValue(l.id); }}>
                 £ est
+              </button>
+            )}
+            {onSimilar && (
+              <button className="route-add" title="Find similar-looking listings" onClick={(e) => { e.stopPropagation(); onSimilar(l.id); }}>
+                ◇ similar
               </button>
             )}
             {onAddRoute && (
               <button
                 className={`route-add${routeIds?.has(l.id) ? " on" : ""}`}
                 title="Add to viewing route"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAddRoute(l.id);
-                }}
+                onClick={(e) => { e.stopPropagation(); onAddRoute(l.id); }}
               >
                 {routeIds?.has(l.id) ? "✓ route" : "+ route"}
               </button>
             )}
           </div>
+          {l.tags && l.tags.length > 0 && (
+            <div className="card-tags">
+              {l.tags.slice(0, 4).map((t) => (
+                <span key={t} className="tag">{t}</span>
+              ))}
+            </div>
+          )}
         </article>
       ))}
     </div>

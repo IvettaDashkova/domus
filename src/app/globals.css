@@ -204,11 +204,55 @@ a {
   white-space: nowrap;
 }
 
+.card-photo {
+  width: calc(100% + 28px);
+  height: 128px;
+  margin: -13px -14px 11px;
+  object-fit: cover;
+  display: block;
+  border-radius: 11px 11px 0 0;
+  background: var(--bg-elev);
+}
+
 .card-meta {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 9px;
+}
+.tag {
+  font-size: 11px;
+  color: #b9a6ff;
+  background: rgba(138, 77, 255, 0.1);
+  border: 1px solid rgba(138, 77, 255, 0.25);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.vmode {
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--muted);
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 11px;
+  cursor: pointer;
+}
+.vmode.on {
+  background: linear-gradient(135deg, var(--accent), #8a4dff);
+  color: #fff;
+  border-color: transparent;
 }
 
 .chip {

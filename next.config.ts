@@ -26,6 +26,9 @@ const nextConfig: NextConfig = {
     "/api/leads/triage": [
       "./node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin/**/linux/x64/*",
     ],
+    "/api/visual-search": [
+      "./node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin/**/linux/x64/*",
+    ],
   },
 };
 

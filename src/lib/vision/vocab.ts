@@ -1,0 +1,21 @@
+/** Candidate labels for CLIP zero-shot auto-tagging of listing photos. */
+export const TAG_VOCAB = [
+  "modern kitchen",
+  "period features",
+  "open-plan living",
+  "bay window",
+  "hardwood floors",
+  "new build",
+  "garden",
+  "balcony",
+  "bright and airy",
+  "needs renovation",
+  "fireplace",
+  "high ceilings",
+  "exposed brick",
+  "fitted wardrobes",
+  "city view",
+  "detached house",
+  "terraced house",
+  "apartment block",
+];

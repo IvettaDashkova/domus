@@ -98,6 +98,7 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
   const [beds, setBeds] = useState("");
   const [ptype, setPtype] = useState("");
   const [useLoc, setUseLoc] = useState(false);
+  const [visualMode, setVisualMode] = useState(false);
   const [view, setView] = useState<MapView>({ lng: -1.5, lat: 52.5, radiusKm: 300 });
   const [loading, setLoading] = useState(false);
   const [matched, setMatched] = useState(false);
@@ -228,25 +229,47 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
   async function search() {
     setLoading(true);
     try {
-      const res = await fetch("/api/match", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          brief,
-          filters: {
-            maxPrice: maxPrice ? Number(maxPrice) : null,
-            bedrooms: beds ? Number(beds) : null,
-            propertyType: ptype || null,
-          },
-          location: useLoc ? { lat: view.lat, lng: view.lng, radiusKm: view.radiusKm } : null,
-          limit: 50,
-        }),
-      });
+      const res = visualMode
+        ? await fetch("/api/visual-search", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ query: brief }),
+          })
+        : await fetch("/api/match", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              brief,
+              filters: {
+                maxPrice: maxPrice ? Number(maxPrice) : null,
+                bedrooms: beds ? Number(beds) : null,
+                propertyType: ptype || null,
+              },
+              location: useLoc ? { lat: view.lat, lng: view.lng, radiusKm: view.radiusKm } : null,
+              limit: 50,
+            }),
+          });
       const data = await res.json();
       const results: WorkspaceRow[] = (data.results ?? []).map(
         (r: WorkspaceRow, i: number) => ({ ...r, rank: i + 1 }),
       );
       setRows(results);
+      setMatched(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function similar(listingId: string) {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/listings/similar", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ listingId }),
+      });
+      const data = await res.json();
+      setRows((data.results ?? []).map((r: WorkspaceRow, i: number) => ({ ...r, rank: i + 1 })));
       setMatched(true);
     } finally {
       setLoading(false);
@@ -308,8 +331,20 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
           <input
             value={brief}
             onChange={(e) => setBrief(e.target.value)}
-            placeholder="Describe the property a buyer wants…  (press Enter)"
+            placeholder={
+              visualMode
+                ? "Describe how it should look…  (visual search, Enter)"
+                : "Describe the property a buyer wants…  (press Enter)"
+            }
           />
+          <button
+            type="button"
+            className={`vmode${visualMode ? " on" : ""}`}
+            title="Visual search (match on photos via CLIP)"
+            onClick={() => setVisualMode((v) => !v)}
+          >
+            ◇ visual
+          </button>
         </form>
         <div className="topbar-spacer" />
         <button className="btn triage-btn" onClick={() => setTriageOpen(true)}>
@@ -449,6 +484,7 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
             onAddRoute={toggleRoute}
             routeIds={new Set(routeIds)}
             onValue={valuate}
+            onSimilar={similar}
           />
         </aside>
 

@@ -14,7 +14,7 @@ async function loadInitial(): Promise<WorkspaceRow[]> {
     if (!agency) return [];
     return await withTenant(agency.id, (sql) =>
       sql<WorkspaceRow[]>`
-        select id, address, price, bedrooms, property_type,
+        select id, address, price, bedrooms, property_type, image_url, tags,
                st_x(geom::geometry) as lng, st_y(geom::geometry) as lat
         from listings
         where status = 'enriched'
