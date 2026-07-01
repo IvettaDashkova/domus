@@ -24,6 +24,19 @@ export const matchBody = z.object({
 });
 
 export const triageBody = z.object({ enquiry: z.string().min(1).max(4000) });
+export const createLeadBody = z.object({
+  enquiry: z.string().min(1).max(4000),
+  contact: z.string().max(200).optional(),
+  requirements: z
+    .object({
+      propertyType: z.string().nullable().optional(),
+      bedrooms: z.number().int().nullable().optional(),
+      minPrice: z.number().nullable().optional(),
+      maxPrice: z.number().nullable().optional(),
+      location: z.string().nullable().optional(),
+    })
+    .optional(),
+});
 export const rerunBody = z.object({ leadId: z.string().uuid() });
 export const visualSearchBody = z.object({ query: z.string().min(1).max(500) });
 export const similarBody = z.object({ listingId: z.string().uuid() });

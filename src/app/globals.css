@@ -203,6 +203,69 @@ a {
 .lead-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
 .lead-open { font-size: 12px; color: var(--accent); font-weight: 600; }
 
+/* ── auth ───────────────────────────────────────────────────────────────── */
+.auth-page { min-height: 100vh; display: grid; place-items: center; padding: 20px; }
+.auth-card {
+  width: min(400px, 92vw);
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+}
+.auth-form { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+.auth-form input {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  padding: 11px 12px;
+  outline: none;
+}
+.auth-form input:focus { border-color: var(--accent); }
+.auth-toggle { text-align: center; font-size: 13px; color: var(--muted); margin-top: 14px; }
+.auth-toggle button { background: none; border: 0; color: var(--accent); cursor: pointer; font: inherit; font-weight: 600; }
+.auth-demo { display: block; text-align: center; font-size: 13px; margin-top: 12px; color: var(--muted); }
+.auth-msg { color: var(--pin-green); font-size: 13px; }
+
+.auth-chip { display: flex; align-items: center; gap: 8px; }
+.signin { text-decoration: none; white-space: nowrap; }
+
+.demo-note {
+  margin: 0 12px 8px;
+  padding: 9px 12px;
+  background: var(--accent-soft);
+  border: 1px solid rgba(47, 107, 255, 0.25);
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.demo-note a { font-weight: 600; }
+
+.nl-input {
+  width: 100%;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 10px;
+  margin-top: 8px;
+  outline: none;
+  resize: vertical;
+}
+.nl-input:focus { border-color: var(--accent); }
+
+/* ── onboarding ─────────────────────────────────────────────────────────── */
+.onboard-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.onboard-step { font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.onboard-dots { display: flex; gap: 6px; margin: 18px 0 4px; }
+.onboard-dot { width: 7px; height: 7px; border-radius: 999px; background: var(--border-strong); }
+.onboard-dot.on { background: var(--accent); }
+
 .panel {
   background: var(--bg-elev);
   border: 1px solid var(--border);

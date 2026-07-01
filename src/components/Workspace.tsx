@@ -8,11 +8,14 @@ import Map, {
   type RouteLine,
   type RouteStop,
 } from "@/components/Map";
+import Link from "next/link";
 import ListingList, { type ListingRow } from "@/components/ListingList";
 import LeadInbox, { type LeadRow } from "@/components/LeadInbox";
 import DetailDrawer from "@/components/DetailDrawer";
+import Onboarding from "@/components/Onboarding";
 import Logo from "@/components/Logo";
 import { categoryColor } from "@/lib/ui/category";
+import { supabaseBrowser } from "@/lib/supabase/client";
 
 export interface WorkspaceRow extends ListingRow {
   lng: number | null;
@@ -96,7 +99,13 @@ function popupHtml(r: WorkspaceRow): string {
   );
 }
 
-export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
+export default function Workspace({
+  initial,
+  userEmail,
+}: {
+  initial: WorkspaceRow[];
+  userEmail: string | null;
+}) {
   const [rows, setRows] = useState<WorkspaceRow[]>(initial);
   const [brief, setBrief] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
@@ -146,6 +155,36 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
       }
     } finally {
       setOpeningLead(null);
+    }
+  }
+
+  async function signOut() {
+    const sb = supabaseBrowser();
+    if (sb) await sb.auth.signOut();
+    window.location.reload();
+  }
+
+  // New-lead form (auth-gated)
+  const [newLeadOpen, setNewLeadOpen] = useState(false);
+  const [nlContact, setNlContact] = useState("");
+  const [nlEnquiry, setNlEnquiry] = useState("");
+  const [nlSaving, setNlSaving] = useState(false);
+  async function submitNewLead() {
+    setNlSaving(true);
+    try {
+      const res = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ enquiry: nlEnquiry, contact: nlContact || undefined }),
+      });
+      if (res.ok) {
+        setNewLeadOpen(false);
+        setNlContact("");
+        setNlEnquiry("");
+        goLeads();
+      }
+    } finally {
+      setNlSaving(false);
     }
   }
 
@@ -401,7 +440,14 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
         <button className="btn triage-btn" onClick={() => setTriageOpen(true)}>
           ✦ Triage lead
         </button>
-        <div className="avatar">DA</div>
+        {userEmail ? (
+          <div className="auth-chip">
+            <div className="avatar" title={userEmail}>{userEmail.slice(0, 2).toUpperCase()}</div>
+            <button className="btn ghost" onClick={signOut}>Sign out</button>
+          </div>
+        ) : (
+          <Link href="/login" className="btn signin">Sign in</Link>
+        )}
       </header>
 
       <div className="body">
@@ -426,8 +472,46 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
           <aside className="panel">
             <div className="panel-head">
               <span className="panel-title">Lead inbox</span>
-              <span className="count-pill">{leads.length}</span>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {userEmail && (
+                  <button className="btn" onClick={() => setNewLeadOpen((v) => !v)}>
+                    + New
+                  </button>
+                )}
+                <span className="count-pill">{leads.length}</span>
+              </div>
             </div>
+            {!userEmail && (
+              <div className="demo-note">
+                Demo leads — <Link href="/login">sign in</Link> to create &amp; save your own.
+              </div>
+            )}
+            {newLeadOpen && userEmail && (
+              <div className="controls">
+                <div className="controls-title">New lead</div>
+                <input
+                  className="nl-input"
+                  placeholder="Contact (name / email)"
+                  value={nlContact}
+                  onChange={(e) => setNlContact(e.target.value)}
+                />
+                <textarea
+                  className="nl-input"
+                  rows={3}
+                  placeholder="Enquiry / notes"
+                  value={nlEnquiry}
+                  onChange={(e) => setNlEnquiry(e.target.value)}
+                />
+                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 }}>
+                  <button className="btn ghost" onClick={() => setNewLeadOpen(false)}>
+                    Cancel
+                  </button>
+                  <button className="btn" onClick={submitNewLead} disabled={nlSaving || !nlEnquiry.trim()}>
+                    {nlSaving ? "…" : "Add lead"}
+                  </button>
+                </div>
+              </div>
+            )}
             <LeadInbox
               leads={leads}
               loading={leadsLoading}
@@ -698,6 +782,8 @@ export default function Workspace({ initial }: { initial: WorkspaceRow[] }) {
           </div>
         </div>
       )}
+
+      <Onboarding />
     </div>
   );
 }

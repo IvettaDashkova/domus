@@ -1,4 +1,5 @@
 import Workspace, { type WorkspaceRow } from "@/components/Workspace";
+import { currentUserEmail } from "@/lib/supabase/server";
 
 // DB-touching page: keep it dynamic and Node, init the client lazily.
 export const dynamic = "force-dynamic";
@@ -27,6 +28,6 @@ async function loadInitial(): Promise<WorkspaceRow[]> {
 }
 
 export default async function Home() {
-  const initial = await loadInitial();
-  return <Workspace initial={initial} />;
+  const [initial, userEmail] = await Promise.all([loadInitial(), currentUserEmail()]);
+  return <Workspace initial={initial} userEmail={userEmail} />;
 }
