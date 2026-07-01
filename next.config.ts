@@ -29,6 +29,9 @@ const nextConfig: NextConfig = {
     "/api/visual-search": [
       "./node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin/**/linux/x64/*",
     ],
+    "/api/leads/rerun": [
+      "./node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin/**/linux/x64/*",
+    ],
   },
 };
 
