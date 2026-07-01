@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { parseBody, createLeadBody } from "@/lib/api/validate";
+import type { Brief } from "@/lib/leads/extract";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -38,7 +39,21 @@ export async function POST(req: Request) {
     }
 
     const { withTenant } = await import("@/lib/db/tenant");
-    const { enquiry, contact, requirements } = parsed.data;
+    const { enquiry, contact } = parsed.data;
+
+    // Extract a structured brief from the enquiry so the lead matches correctly
+    // when re-opened (location, beds, budget, excludes). Falls back gracefully.
+    let requirements: Brief | null = null;
+    try {
+      const { geminiApiKey } = await import("@/lib/ai/gemini");
+      if (geminiApiKey()) {
+        const { extractBrief } = await import("@/lib/leads/extract");
+        requirements = await extractBrief(enquiry);
+      }
+    } catch {
+      // keep whatever we had; the lead is still saved
+    }
+
     const [lead] = await withTenant(session.agencyId, (sql) =>
       sql<{ id: string }[]>`
         insert into leads (agency_id, raw_text, contact, requirements, status)
@@ -46,7 +61,7 @@ export async function POST(req: Request) {
                 ${requirements ? sql.json(requirements) : null}, 'new')
         returning id`,
     );
-    return NextResponse.json({ leadId: lead.id });
+    return NextResponse.json({ leadId: lead.id, requirements });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }

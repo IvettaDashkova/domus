@@ -3,6 +3,7 @@
 export interface LeadRow {
   id: string;
   raw_text: string | null;
+  contact: string | null;
   requirements: {
     propertyType?: string;
     bedrooms?: number | null;
@@ -20,15 +21,21 @@ export default function LeadInbox({
   loading,
   onOpen,
   openingId,
+  canEdit,
+  onEdit,
+  onDelete,
 }: {
   leads: LeadRow[];
   loading: boolean;
   onOpen: (id: string) => void;
   openingId: string | null;
+  canEdit: boolean;
+  onEdit: (lead: LeadRow) => void;
+  onDelete: (id: string) => void;
 }) {
   if (loading) return <div className="empty">Loading leads…</div>;
   if (leads.length === 0)
-    return <div className="empty">No leads yet — triage an enquiry.</div>;
+    return <div className="empty">No leads yet — triage an enquiry or add one.</div>;
 
   return (
     <div className="list">
@@ -36,6 +43,7 @@ export default function LeadInbox({
         const b = l.requirements ?? {};
         return (
           <article key={l.id} className="card lead-card" onClick={() => onOpen(l.id)}>
+            {l.contact && <div className="lead-contact">{l.contact}</div>}
             <div className="lead-enquiry">{l.raw_text ?? "(no text)"}</div>
             <div className="brief-chips">
               {b.propertyType && b.propertyType !== "any" && (
@@ -55,7 +63,33 @@ export default function LeadInbox({
             </div>
             <div className="lead-foot">
               <span className="chip">{l.status}</span>
-              <span className="lead-open">{openingId === l.id ? "opening…" : "open →"}</span>
+              <div className="lead-actions">
+                {canEdit && (
+                  <>
+                    <button
+                      className="route-add"
+                      title="Edit lead"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit(l);
+                      }}
+                    >
+                      ✎ edit
+                    </button>
+                    <button
+                      className="route-add danger"
+                      title="Delete lead"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(l.id);
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </>
+                )}
+                <span className="lead-open">{openingId === l.id ? "…" : "open →"}</span>
+              </div>
             </div>
           </article>
         );

@@ -200,8 +200,13 @@ a {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.lead-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+.lead-contact { font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 6px; }
+.lead-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; gap: 8px; }
+.lead-actions { display: flex; align-items: center; gap: 6px; }
 .lead-open { font-size: 12px; color: var(--accent); font-weight: 600; }
+.route-add.danger { color: var(--pin-red); }
+.route-add.danger:hover { border-color: var(--pin-red); color: var(--pin-red); }
+.nl-hint { font-size: 11px; color: var(--faint); margin-top: 8px; }
 
 /* ── auth ───────────────────────────────────────────────────────────────── */
 .auth-page { min-height: 100vh; display: grid; place-items: center; padding: 20px; }

@@ -164,21 +164,40 @@ export default function Workspace({
     window.location.reload();
   }
 
-  // New-lead form (auth-gated)
+  // New / edit lead form (auth-gated)
   const [newLeadOpen, setNewLeadOpen] = useState(false);
+  const [editingLeadId, setEditingLeadId] = useState<string | null>(null);
   const [nlContact, setNlContact] = useState("");
   const [nlEnquiry, setNlEnquiry] = useState("");
   const [nlSaving, setNlSaving] = useState(false);
+
+  function openNewLead() {
+    setEditingLeadId(null);
+    setNlContact("");
+    setNlEnquiry("");
+    setNewLeadOpen(true);
+  }
+  function editLead(l: LeadRow) {
+    setEditingLeadId(l.id);
+    setNlContact(l.contact ?? "");
+    setNlEnquiry(l.raw_text ?? "");
+    setNewLeadOpen(true);
+  }
+  async function deleteLead(id: string) {
+    const res = await fetch(`/api/leads/${id}`, { method: "DELETE" });
+    if (res.ok) goLeads();
+  }
   async function submitNewLead() {
     setNlSaving(true);
     try {
-      const res = await fetch("/api/leads", {
-        method: "POST",
+      const res = await fetch(editingLeadId ? `/api/leads/${editingLeadId}` : "/api/leads", {
+        method: editingLeadId ? "PATCH" : "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ enquiry: nlEnquiry, contact: nlContact || undefined }),
       });
       if (res.ok) {
         setNewLeadOpen(false);
+        setEditingLeadId(null);
         setNlContact("");
         setNlEnquiry("");
         goLeads();
@@ -474,7 +493,7 @@ export default function Workspace({
               <span className="panel-title">Lead inbox</span>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 {userEmail && (
-                  <button className="btn" onClick={() => setNewLeadOpen((v) => !v)}>
+                  <button className="btn" onClick={openNewLead}>
                     + New
                   </button>
                 )}
@@ -488,7 +507,7 @@ export default function Workspace({
             )}
             {newLeadOpen && userEmail && (
               <div className="controls">
-                <div className="controls-title">New lead</div>
+                <div className="controls-title">{editingLeadId ? "Edit lead" : "New lead"}</div>
                 <input
                   className="nl-input"
                   placeholder="Contact (name / email)"
@@ -498,16 +517,17 @@ export default function Workspace({
                 <textarea
                   className="nl-input"
                   rows={3}
-                  placeholder="Enquiry / notes"
+                  placeholder="Enquiry — e.g. '2-bed flat in Liverpool under £180k, not a new build'"
                   value={nlEnquiry}
                   onChange={(e) => setNlEnquiry(e.target.value)}
                 />
+                <div className="nl-hint">Saved with an LLM-extracted brief so it matches on open.</div>
                 <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 }}>
                   <button className="btn ghost" onClick={() => setNewLeadOpen(false)}>
                     Cancel
                   </button>
                   <button className="btn" onClick={submitNewLead} disabled={nlSaving || !nlEnquiry.trim()}>
-                    {nlSaving ? "…" : "Add lead"}
+                    {nlSaving ? "…" : editingLeadId ? "Save changes" : "Add lead"}
                   </button>
                 </div>
               </div>
@@ -517,6 +537,9 @@ export default function Workspace({
               loading={leadsLoading}
               onOpen={openLead}
               openingId={openingLead}
+              canEdit={!!userEmail}
+              onEdit={editLead}
+              onDelete={deleteLead}
             />
           </aside>
         ) : (

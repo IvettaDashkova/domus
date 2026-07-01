@@ -38,6 +38,11 @@ export const createLeadBody = z.object({
     .optional(),
 });
 export const rerunBody = z.object({ leadId: z.string().uuid() });
+export const editLeadBody = z.object({
+  contact: z.string().max(200).nullable().optional(),
+  enquiry: z.string().min(1).max(4000).optional(),
+  status: z.enum(["new", "triaged", "contacted", "viewing", "closed"]).optional(),
+});
 export const visualSearchBody = z.object({ query: z.string().min(1).max(500) });
 export const similarBody = z.object({ listingId: z.string().uuid() });
 export const valuationBody = z.object({ listingId: z.string().uuid() });
