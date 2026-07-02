@@ -280,9 +280,9 @@ a {
 .landing {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 0.9fr 1.1fr;
+  grid-template-columns: 1.05fr 0.85fr;
   align-items: center;
-  gap: 36px;
+  gap: 48px;
   max-width: 1180px;
   margin: 0 auto;
   padding: 40px 32px;
@@ -298,28 +298,31 @@ a {
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
 }
+/* Warm cream bubble in the palette of the illustration, sat top-left,
+   clear of her face, tail pointing down towards her. */
 .speech {
   position: absolute;
-  top: 3%;
-  right: -6%;
-  max-width: 290px;
+  top: -10%;
+  left: -10%;
+  max-width: 250px;
   z-index: 2;
-  background: var(--card);
-  border: 1px solid var(--border-strong);
-  border-radius: 16px;
+  background: #f2ece0;
+  color: #2a2620;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  border-radius: 18px;
   padding: 14px 16px;
   font-size: 13px;
   line-height: 1.55;
-  color: var(--text);
-  box-shadow: var(--shadow);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.45);
 }
+.speech b { color: #14110c; }
 .speech::after {
   content: "";
   position: absolute;
-  bottom: -9px;
-  left: 34px;
-  border: 9px solid transparent;
-  border-top-color: var(--card);
+  bottom: -11px;
+  right: 34px;
+  border: 11px solid transparent;
+  border-top-color: #f2ece0;
   border-bottom: 0;
 }
 
@@ -552,6 +555,9 @@ a {
 .near input { accent-color: var(--accent); }
 
 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: var(--accent);
   color: #fff;
   border: 0;
@@ -562,6 +568,7 @@ a {
   padding: 7px 16px;
   cursor: pointer;
   transition: background 0.15s;
+  text-decoration: none;
 }
 .btn:hover { background: var(--accent-hover); }
 .btn:disabled { opacity: 0.6; cursor: default; }

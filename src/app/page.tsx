@@ -19,16 +19,6 @@ export default async function Landing() {
 
   return (
     <main className="landing">
-      <section className="landing-figure">
-        <div className="speech">
-          <b>Hi, I&apos;m Ivetta</b> 👋 — a front-end / full-stack developer (React · Next.js ·
-          TypeScript · Node). I build production geospatial &amp; AI apps. Meet <b>Domus</b> — my
-          portfolio project.
-        </div>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className="landing-photo" src="/ivetta.jpg" alt="Ivetta Dashkova" />
-      </section>
-
       <section className="landing-copy">
         <div className="brand" style={{ fontSize: 22 }}>
           <Logo size={30} />
@@ -58,16 +48,27 @@ export default async function Landing() {
         <div className="landing-cta">
           <Link href="/map" className="btn big">Explore the map →</Link>
           <Link href="/login" className="btn ghost big">Sign in</Link>
+          <a href="/IvettaDashkova_CV.pdf" download className="btn ghost big">↓ CV</a>
         </div>
 
         <div className="landing-links">
-          <a href="https://github.com/IvettaDashkova/domus" target="_blank" rel="noreferrer">Source</a>
+          <a href="https://github.com/IvettaDashkova" target="_blank" rel="noreferrer">Portfolio</a>
           <span>·</span>
-          <a href="https://github.com/IvettaDashkova" target="_blank" rel="noreferrer">GitHub</a>
+          <a href="https://github.com/IvettaDashkova/domus" target="_blank" rel="noreferrer">Source</a>
           <span>·</span>
           <a href="https://linkedin.com/in/ivettadashkova" target="_blank" rel="noreferrer">LinkedIn</a>
           <span>·</span>
           <a href="mailto:ivettadashkovafsd@gmail.com">Email</a>
+        </div>
+      </section>
+
+      <section className="landing-figure">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className="landing-photo" src="/ivetta.jpg" alt="Ivetta Dashkova" />
+        <div className="speech">
+          <b>Hi, I&apos;m Ivetta</b> 👋 — a front-end / full-stack developer (React · Next.js ·
+          TypeScript · Node). I build production geospatial &amp; AI apps. Meet <b>Domus</b> — my
+          portfolio project.
         </div>
       </section>
     </main>
