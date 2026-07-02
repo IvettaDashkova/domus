@@ -30,11 +30,11 @@ export default function LoginPage() {
     if (mode === "in") {
       const { error } = await sb.auth.signInWithPassword({ email, password: pw });
       if (error) setErr(error.message);
-      else router.push("/");
+      else router.push("/map");
     } else {
       const { data, error } = await sb.auth.signUp({ email, password: pw });
       if (error) setErr(error.message);
-      else if (data.session) router.push("/");
+      else if (data.session) router.push("/map");
       else setMsg("Account created — check your email to confirm, then sign in.");
     }
     setBusy(false);
@@ -85,7 +85,7 @@ export default function LoginPage() {
             <>Have an account? <button onClick={() => setMode("in")}>Sign in</button></>
           )}
         </div>
-        <Link href="/" className="auth-demo">← Continue browsing the demo</Link>
+        <Link href="/map" className="auth-demo">← Continue browsing the demo</Link>
       </div>
     </div>
   );

@@ -2,11 +2,7 @@
 
 import type { ListingRow } from "@/components/ListingList";
 import { categoryColor } from "@/lib/ui/category";
-
-function fmtPrice(p: number | null): string {
-  if (p == null) return "—";
-  return `£${Math.round(p).toLocaleString()}`;
-}
+import { zlFull } from "@/lib/ui/money";
 
 export default function DetailDrawer({
   listing,
@@ -34,7 +30,7 @@ export default function DetailDrawer({
         <img className="drawer-photo" src={l.image_url} alt="" />
       )}
       <div className="drawer-body">
-        <div className="drawer-price">{fmtPrice(l.price)}</div>
+        <div className="drawer-price">{zlFull(l.price)}</div>
         <div className="drawer-addr">{l.address ?? "(no address)"}</div>
         <div className="card-meta">
           <span className="chip">

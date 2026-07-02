@@ -5,8 +5,8 @@
 set -euo pipefail
 
 DATA_DIR="$(cd "$(dirname "$0")/.." && pwd)/osrm/data"
-PBF_URL="${REGION_URL:-https://download.geofabrik.de/europe/united-kingdom/england/greater-london-latest.osm.pbf}"
-BASE="${REGION_BASE:-greater-london-latest}"
+PBF_URL="${REGION_URL:-https://download.geofabrik.de/europe/poland/mazowieckie-latest.osm.pbf}"
+BASE="${REGION_BASE:-mazowieckie-latest}"
 PBF="$BASE.osm.pbf"
 IMG="osrm/osrm-backend:latest"
 

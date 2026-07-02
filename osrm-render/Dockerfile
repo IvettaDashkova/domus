@@ -4,7 +4,7 @@
 # Override REGION_URL to use another area.
 
 FROM curlimages/curl:latest AS fetch
-ARG REGION_URL=https://download.geofabrik.de/europe/united-kingdom/england/greater-london-latest.osm.pbf
+ARG REGION_URL=https://download.geofabrik.de/europe/poland/mazowieckie-latest.osm.pbf
 RUN curl -L -o /tmp/region.osm.pbf "$REGION_URL"
 
 FROM osrm/osrm-backend:latest

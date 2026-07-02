@@ -1,4 +1,5 @@
 import { categoryColor } from "@/lib/ui/category";
+import { zl } from "@/lib/ui/money";
 
 export interface ListingRow {
   id: string;
@@ -10,13 +11,6 @@ export interface ListingRow {
   tags?: string[] | null;
   score?: number | null;
   rank?: number | null;
-}
-
-function fmtPrice(p: number | null): string {
-  if (p == null) return "—";
-  if (p >= 1_000_000) return `£${(p / 1_000_000).toFixed(p % 1_000_000 ? 2 : 0)}M`;
-  if (p >= 1_000) return `£${Math.round(p / 1000)}k`;
-  return `£${p}`;
 }
 
 export default function ListingList({
@@ -60,7 +54,7 @@ export default function ListingList({
               {l.rank != null && <span className="rank">{l.rank}</span>}
               {l.address ?? "(no address)"}
             </div>
-            <span className="price">{fmtPrice(l.price)}</span>
+            <span className="price">{zl(l.price)}</span>
           </div>
           <div className="card-meta">
             <span className="chip">

@@ -28,7 +28,8 @@
     "fetch:photos": "tsx scripts/fetch-photos.ts",
     "enrich:images": "tsx scripts/enrich-images.ts",
     "security:audit": "tsx scripts/security-audit.ts",
-    "evals:all": "tsx evals/all.ts"
+    "evals:all": "tsx evals/all.ts",
+    "seed:poland": "tsx scripts/seed-poland.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.1",

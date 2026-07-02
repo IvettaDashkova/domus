@@ -52,8 +52,8 @@ export default function LeadInbox({
               {b.bedrooms != null && <span className="chip">{b.bedrooms} bed</span>}
               {(b.minPrice != null || b.maxPrice != null) && (
                 <span className="chip">
-                  {b.minPrice != null ? `£${b.minPrice.toLocaleString()}` : "£0"}–
-                  {b.maxPrice != null ? `£${b.maxPrice.toLocaleString()}` : "∞"}
+                  {b.minPrice != null ? `${b.minPrice.toLocaleString("pl-PL")} zł` : "0 zł"}–
+                  {b.maxPrice != null ? `${b.maxPrice.toLocaleString("pl-PL")} zł` : "∞"}
                 </span>
               )}
               {b.location && <span className="chip">📍 {b.location}</span>}

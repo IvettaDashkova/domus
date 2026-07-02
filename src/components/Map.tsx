@@ -93,7 +93,7 @@ export default function Map({
       map = new maplibregl.Map({
         container: ref.current,
         style: DARK_STYLE,
-        center: [-1.5, 52.5],
+        center: [19.4, 52.0],
         zoom: 5.4,
         attributionControl: false,
       });

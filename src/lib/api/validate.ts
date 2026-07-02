@@ -45,6 +45,14 @@ export const editLeadBody = z.object({
 });
 export const visualSearchBody = z.object({ query: z.string().min(1).max(500) });
 export const similarBody = z.object({ listingId: z.string().uuid() });
+export const createListingBody = z.object({
+  address: z.string().min(3).max(200),
+  city: z.string().min(2).max(80),
+  price: z.number().positive().max(100_000_000),
+  propertyType: z.enum(["apartment", "house", "studio", "townhouse"]),
+  bedrooms: z.number().int().min(0).max(20).optional(),
+  description: z.string().max(2000).optional(),
+});
 export const valuationBody = z.object({ listingId: z.string().uuid() });
 export const routePlanBody = z.object({
   start: z.object({ lng: z.number(), lat: z.number() }),

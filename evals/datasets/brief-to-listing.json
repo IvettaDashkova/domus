@@ -1,27 +1,27 @@
 [
   {
     "id": "q1",
-    "brief": "spacious detached family house with a garden",
-    "relevanceKeyword": "detached"
+    "brief": "spacious family house with a garden",
+    "relevanceKeyword": "house"
   },
   {
     "id": "q2",
-    "brief": "modern flat / apartment, leasehold, good for a first-time buyer",
-    "relevanceKeyword": "flat"
+    "brief": "modern apartment near the centre, well connected",
+    "relevanceKeyword": "apartment"
   },
   {
     "id": "q3",
-    "brief": "terraced house close to the town centre",
-    "relevanceKeyword": "terraced"
+    "brief": "compact studio close to the old town",
+    "relevanceKeyword": "studio"
   },
   {
     "id": "q4",
-    "brief": "semi-detached property, freehold, room to extend",
-    "relevanceKeyword": "semi-detached"
+    "brief": "townhouse with parking and high ceilings",
+    "relevanceKeyword": "townhouse"
   },
   {
     "id": "q5",
-    "brief": "freehold home, not a leasehold flat",
-    "relevanceKeyword": "freehold"
+    "brief": "bright renovated apartment with a balcony",
+    "relevanceKeyword": "renovated"
   }
 ]

@@ -15,6 +15,7 @@ import DetailDrawer from "@/components/DetailDrawer";
 import Onboarding from "@/components/Onboarding";
 import Logo from "@/components/Logo";
 import { categoryColor } from "@/lib/ui/category";
+import { zl, zlFull } from "@/lib/ui/money";
 import { supabaseBrowser } from "@/lib/supabase/client";
 
 export interface WorkspaceRow extends ListingRow {
@@ -53,7 +54,6 @@ interface RoutePlanData {
 }
 
 const mins = (s: number) => `${Math.round(s / 60)}m`;
-const gbp = (n: number) => `£${Math.round(n).toLocaleString()}`;
 
 interface CompW {
   id: string;
@@ -78,14 +78,9 @@ interface ValuationData {
   errorPct: number | null;
 }
 
-const TYPES = ["", "detached house", "semi-detached house", "terraced house", "flat"];
+const TYPES = ["", "apartment", "house", "studio", "townhouse"];
 
-function fmtPrice(p: number | null): string {
-  if (p == null) return "—";
-  if (p >= 1_000_000) return `£${(p / 1_000_000).toFixed(p % 1_000_000 ? 2 : 0)}M`;
-  if (p >= 1_000) return `£${Math.round(p / 1000)}k`;
-  return `£${p}`;
-}
+const fmtPrice = zl;
 
 const esc = (s: string) =>
   s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -113,7 +108,7 @@ export default function Workspace({
   const [ptype, setPtype] = useState("");
   const [useLoc, setUseLoc] = useState(false);
   const [visualMode, setVisualMode] = useState(false);
-  const [view, setView] = useState<MapView>({ lng: -1.5, lat: 52.5, radiusKm: 300 });
+  const [view, setView] = useState<MapView>({ lng: 19.4, lat: 52.0, radiusKm: 300 });
   const [loading, setLoading] = useState(false);
   const [matched, setMatched] = useState(false);
   const [focus, setFocus] = useState<MapFocus | null>(null);
@@ -204,6 +199,45 @@ export default function Workspace({
       }
     } finally {
       setNlSaving(false);
+    }
+  }
+
+  // Add property (auth-gated)
+  const [addOpen, setAddOpen] = useState(false);
+  const [alAddress, setAlAddress] = useState("");
+  const [alCity, setAlCity] = useState("Warszawa");
+  const [alPrice, setAlPrice] = useState("");
+  const [alType, setAlType] = useState("apartment");
+  const [alBeds, setAlBeds] = useState("");
+  const [alDesc, setAlDesc] = useState("");
+  const [alSaving, setAlSaving] = useState(false);
+  const [alError, setAlError] = useState<string | null>(null);
+  async function submitListing() {
+    setAlSaving(true);
+    setAlError(null);
+    try {
+      const res = await fetch("/api/listings", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          address: alAddress,
+          city: alCity,
+          price: Number(alPrice),
+          propertyType: alType,
+          bedrooms: alBeds ? Number(alBeds) : undefined,
+          description: alDesc || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAlError(data.error ?? "failed");
+        return;
+      }
+      window.location.reload();
+    } catch (e) {
+      setAlError((e as Error).message);
+    } finally {
+      setAlSaving(false);
     }
   }
 
@@ -456,6 +490,11 @@ export default function Workspace({
           </button>
         </form>
         <div className="topbar-spacer" />
+        {userEmail && (
+          <button className="btn" onClick={() => setAddOpen(true)}>
+            + Property
+          </button>
+        )}
         <button className="btn triage-btn" onClick={() => setTriageOpen(true)}>
           ✦ Triage lead
         </button>
@@ -517,7 +556,7 @@ export default function Workspace({
                 <textarea
                   className="nl-input"
                   rows={3}
-                  placeholder="Enquiry — e.g. '2-bed flat in Liverpool under £180k, not a new build'"
+                  placeholder="Enquiry — e.g. '2-room apartment in Kraków under 700k zł, needs a balcony'"
                   value={nlEnquiry}
                   onChange={(e) => setNlEnquiry(e.target.value)}
                 />
@@ -613,7 +652,7 @@ export default function Workspace({
                 type="number"
                 value={maxPrice}
                 onChange={(e) => setMaxPrice(e.target.value)}
-                placeholder="Max £"
+                placeholder="Max zł"
               />
               <input
                 type="number"
@@ -652,8 +691,8 @@ export default function Workspace({
                 {leadBrief.bedrooms != null && <span className="chip">{leadBrief.bedrooms} bed</span>}
                 {(leadBrief.minPrice != null || leadBrief.maxPrice != null) && (
                   <span className="chip">
-                    {leadBrief.minPrice != null ? `£${leadBrief.minPrice.toLocaleString()}` : "£0"}–
-                    {leadBrief.maxPrice != null ? `£${leadBrief.maxPrice.toLocaleString()}` : "∞"}
+                    {leadBrief.minPrice != null ? zlFull(leadBrief.minPrice) : "0 zł"}–
+                    {leadBrief.maxPrice != null ? zlFull(leadBrief.maxPrice) : "∞"}
                   </span>
                 )}
                 {leadBrief.location && <span className="chip">📍 {leadBrief.location}</span>}
@@ -721,7 +760,7 @@ export default function Workspace({
               value={enquiry}
               onChange={(e) => setEnquiry(e.target.value)}
               rows={5}
-              placeholder="e.g. Hi, we're after a 3-bed semi in south Manchester under £300k with a garden — definitely not a flat or a new build."
+              placeholder="e.g. We're after a 3-bedroom house in Kraków under 900k zł with a garden — definitely not a studio or a new build."
             />
             {triageError && <div className="modal-err">{triageError}</div>}
             <div className="modal-actions">
@@ -766,9 +805,9 @@ export default function Workspace({
                   {valuation.subject.address} · {valuation.subject.propertyType} ·{" "}
                   {valuation.subject.bedrooms} bed
                 </div>
-                <div className="val-estimate">{gbp(valuation.estimate)}</div>
+                <div className="val-estimate">{zlFull(valuation.estimate)}</div>
                 <div className="val-range">
-                  range {gbp(valuation.low)} – {gbp(valuation.high)}
+                  range {zlFull(valuation.low)} – {zlFull(valuation.high)}
                 </div>
                 <div className="val-meta">
                   <span className={`chip val-conf c${Math.round(valuation.confidence * 5)}`}>
@@ -779,7 +818,7 @@ export default function Workspace({
                   </span>
                   {valuation.actual != null && (
                     <span className="chip">
-                      actual {gbp(valuation.actual)} · err {valuation.errorPct}%
+                      actual {zlFull(valuation.actual)} · err {valuation.errorPct}%
                     </span>
                   )}
                 </div>
@@ -787,7 +826,7 @@ export default function Workspace({
                   <div className="val-comps-head">Comparable sales (weighted)</div>
                   {valuation.comps.slice(0, 8).map((c) => (
                     <div key={c.id} className="val-comp">
-                      <span className="vc-price">{gbp(c.price)}</span>
+                      <span className="vc-price">{zlFull(c.price)}</span>
                       <span className="vc-dist">{Math.round(c.distanceM)} m</span>
                       <span className="vc-beds">{c.bedrooms ?? "?"}b</span>
                       <span className="vc-addr">{c.address}</span>
@@ -802,6 +841,73 @@ export default function Workspace({
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {addOpen && (
+        <div className="modal-backdrop" onClick={() => !alSaving && setAddOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-title">Add a property</div>
+            <div className="modal-sub">
+              Adds to the shared catalogue — appears on the map for everyone.
+            </div>
+            <div className="add-form">
+              <input
+                className="nl-input"
+                placeholder="Address (e.g. ul. Marszałkowska 12)"
+                value={alAddress}
+                onChange={(e) => setAlAddress(e.target.value)}
+              />
+              <div className="add-row">
+                <select className="nl-input" value={alCity} onChange={(e) => setAlCity(e.target.value)}>
+                  {["Warszawa", "Kraków", "Wrocław", "Gdańsk", "Poznań", "Łódź"].map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
+                <select className="nl-input" value={alType} onChange={(e) => setAlType(e.target.value)}>
+                  {["apartment", "house", "studio", "townhouse"].map((t) => (
+                    <option key={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="add-row">
+                <input
+                  className="nl-input"
+                  type="number"
+                  placeholder="Price (zł)"
+                  value={alPrice}
+                  onChange={(e) => setAlPrice(e.target.value)}
+                />
+                <input
+                  className="nl-input"
+                  type="number"
+                  placeholder="Bedrooms"
+                  value={alBeds}
+                  onChange={(e) => setAlBeds(e.target.value)}
+                />
+              </div>
+              <textarea
+                className="nl-input"
+                rows={2}
+                placeholder="Description (optional)"
+                value={alDesc}
+                onChange={(e) => setAlDesc(e.target.value)}
+              />
+            </div>
+            {alError && <div className="modal-err">{alError}</div>}
+            <div className="modal-actions">
+              <button className="btn ghost" onClick={() => setAddOpen(false)} disabled={alSaving}>
+                Cancel
+              </button>
+              <button
+                className="btn"
+                onClick={submitListing}
+                disabled={alSaving || !alAddress.trim() || !alPrice}
+              >
+                {alSaving ? "Adding…" : "Add property"}
+              </button>
+            </div>
           </div>
         </div>
       )}
