@@ -1,5 +1,7 @@
+"use client";
+
 import { categoryColor } from "@/lib/ui/category";
-import { zl } from "@/lib/ui/money";
+import { useCurrency } from "@/lib/currency";
 
 export interface ListingRow {
   id: string;
@@ -11,6 +13,7 @@ export interface ListingRow {
   tags?: string[] | null;
   score?: number | null;
   rank?: number | null;
+  own?: boolean;
 }
 
 export default function ListingList({
@@ -32,6 +35,7 @@ export default function ListingList({
   onSimilar?: (id: string) => void;
   onHover?: (id: string | null) => void;
 }) {
+  const { fmtShort } = useCurrency();
   if (listings.length === 0) {
     return <div className="empty">No matches.</div>;
   }
@@ -52,9 +56,10 @@ export default function ListingList({
           <div className="card-top">
             <div className="card-addr">
               {l.rank != null && <span className="rank">{l.rank}</span>}
+              {l.own && <span className="own-badge" title="Your listing">Yours</span>}
               {l.address ?? "(no address)"}
             </div>
-            <span className="price">{zl(l.price)}</span>
+            <span className="price">{fmtShort(l.price)}</span>
           </div>
           <div className="card-meta">
             <span className="chip">
@@ -69,7 +74,7 @@ export default function ListingList({
             )}
             {onValue && (
               <button className="route-add" title="Estimate value" onClick={(e) => { e.stopPropagation(); onValue(l.id); }}>
-                £ est
+                ⌂ est
               </button>
             )}
             {onSimilar && (

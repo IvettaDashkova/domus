@@ -11,22 +11,27 @@ export async function POST(req: Request) {
     if ("response" in parsed) return parsed.response;
     const body = parsed.data;
 
-    const { getAdminDb } = await import("@/lib/db/client");
     const { withTenant } = await import("@/lib/db/tenant");
     const { planRoute } = await import("@/lib/routing/route");
+    const { scopedAgencies } = await import("@/lib/listings/scope");
 
-    const admin = getAdminDb();
-    const [agency] = await admin<{ id: string }[]>`
-      select id from agencies order by created_at limit 1`;
-    if (!agency) return NextResponse.json({ error: "no agency" }, { status: 404 });
+    const scoped = await scopedAgencies();
+    if (!scoped.length) return NextResponse.json({ error: "no agency" }, { status: 404 });
 
-    const listings = await withTenant(agency.id, (sql) =>
-      sql<{ id: string; address: string | null; lng: number; lat: number }[]>`
-        select id, address,
-               st_x(geom::geometry) as lng, st_y(geom::geometry) as lat
-        from listings
-        where id in ${sql(body.listingIds!)} and geom is not null`,
-    );
+    // Gather the selected listings from wherever they live (own agency + catalog).
+    const listings = (
+      await Promise.all(
+        scoped.map((a) =>
+          withTenant(a.id, (sql) =>
+            sql<{ id: string; address: string | null; lng: number; lat: number }[]>`
+              select id, address,
+                     st_x(geom::geometry) as lng, st_y(geom::geometry) as lat
+              from listings
+              where id in ${sql(body.listingIds!)} and geom is not null`,
+          ),
+        ),
+      )
+    ).flat();
     if (listings.length < 1) {
       return NextResponse.json({ error: "no routable listings" }, { status: 400 });
     }

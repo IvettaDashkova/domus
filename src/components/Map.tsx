@@ -65,6 +65,9 @@ const DARK_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.
 export default function Map({
   markers,
   onMoveEnd,
+  onMarkerClick,
+  onMapClick,
+  startMarker,
   focus,
   routeLine,
   routeStops,
@@ -72,12 +75,22 @@ export default function Map({
 }: {
   markers: MapMarker[];
   onMoveEnd?: (v: MapView) => void;
+  onMarkerClick?: (id: string) => void;
+  onMapClick?: (p: { lng: number; lat: number }) => void;
+  startMarker?: { lng: number; lat: number } | null;
   focus?: MapFocus | null;
   routeLine?: RouteLine | null;
   routeStops?: RouteStop[] | null;
   highlightId?: string | null;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const startMarkerObj = useRef<maplibregl.Marker | null>(null);
+  const onClickRef = useRef(onMarkerClick);
+  const onMapClickRef = useRef(onMapClick);
+  useEffect(() => {
+    onClickRef.current = onMarkerClick;
+    onMapClickRef.current = onMapClick;
+  });
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markerObjs = useRef<maplibregl.Marker[]>([]);
   const markerById = useRef<Record<string, maplibregl.Marker>>({});
@@ -101,12 +114,13 @@ export default function Map({
       queueMicrotask(() => setFailed(true));
       return;
     }
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-left");
     map.on("load", () => {
       setReady(true);
       onMoveEnd?.(viewOf(map)); // seed the view so "Near map" works before any pan
     });
     map.on("moveend", () => onMoveEnd?.(viewOf(map)));
+    map.on("click", (e) => onMapClickRef.current?.({ lng: e.lngLat.lng, lat: e.lngLat.lat }));
     mapRef.current = map;
     return () => {
       map.remove();
@@ -125,6 +139,10 @@ export default function Map({
       const el = document.createElement("div");
       el.className = "pin";
       el.style.background = m.color ?? "#2f6bff";
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        onClickRef.current?.(m.id);
+      });
       const popup =
         m.html || m.label
           ? new maplibregl.Popup({ offset: 16, closeButton: false, className: "domus-popup" })
@@ -187,6 +205,33 @@ export default function Map({
       return new maplibregl.Marker({ element: el }).setLngLat([s.lng, s.lat]).addTo(map);
     });
   }, [routeStops, ready]);
+
+  // Manual route start marker (draggable "S").
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    if (!startMarker) {
+      startMarkerObj.current?.remove();
+      startMarkerObj.current = null;
+      return;
+    }
+    if (!startMarkerObj.current) {
+      const el = document.createElement("div");
+      el.className = "pin-num pin-start";
+      el.textContent = "S";
+      const m = new maplibregl.Marker({ element: el, draggable: true })
+        .setLngLat([startMarker.lng, startMarker.lat])
+        .addTo(map);
+      m.on("dragend", () => {
+        const p = m.getLngLat();
+        onMapClickRef.current?.({ lng: p.lng, lat: p.lat });
+      });
+      startMarkerObj.current = m;
+    } else {
+      startMarkerObj.current.setLngLat([startMarker.lng, startMarker.lat]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startMarker?.lng, startMarker?.lat, ready]);
 
   // Hover sync: highlight the pin for the hovered card.
   useEffect(() => {

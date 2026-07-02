@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { I18nProvider } from "@/lib/i18n";
+import { CurrencyProvider } from "@/lib/currency";
 
 const inter = Inter({
   subsets: ["latin", "latin-ext", "cyrillic"],
@@ -23,7 +24,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body>
-        <I18nProvider>{children}</I18nProvider>
+        <I18nProvider>
+          <CurrencyProvider>{children}</CurrencyProvider>
+        </I18nProvider>
       </body>
     </html>
   );

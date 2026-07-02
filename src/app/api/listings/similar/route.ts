@@ -10,13 +10,12 @@ export async function POST(req: Request) {
     if ("response" in parsed) return parsed.response;
     const { listingId } = parsed.data;
 
-    const { getAdminDb } = await import("@/lib/db/client");
     const { withTenant } = await import("@/lib/db/tenant");
     const { similarListings } = await import("@/lib/retrieval/visual");
+    const { agencyForListing } = await import("@/lib/listings/scope");
 
-    const admin = getAdminDb();
-    const [agency] = await admin<{ id: string }[]>`
-      select id from agencies order by created_at limit 1`;
+    // similar reads the subject's embedding, so it must run in the subject's agency.
+    const agency = await agencyForListing(listingId);
     if (!agency) return NextResponse.json({ results: [] });
 
     const results = await withTenant(agency.id, (sql) => similarListings(sql, listingId, 12));

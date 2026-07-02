@@ -2,7 +2,7 @@
 
 import type { ListingRow } from "@/components/ListingList";
 import { categoryColor } from "@/lib/ui/category";
-import { zlFull } from "@/lib/ui/money";
+import { useCurrency } from "@/lib/currency";
 
 export default function DetailDrawer({
   listing,
@@ -20,6 +20,7 @@ export default function DetailDrawer({
   inRoute: boolean;
 }) {
   const l = listing;
+  const { fmt } = useCurrency();
   return (
     <div className="drawer" onClick={(e) => e.stopPropagation()}>
       <button className="drawer-close" onClick={onClose} aria-label="Close">
@@ -30,7 +31,7 @@ export default function DetailDrawer({
         <img className="drawer-photo" src={l.image_url} alt="" />
       )}
       <div className="drawer-body">
-        <div className="drawer-price">{zlFull(l.price)}</div>
+        <div className="drawer-price">{fmt(l.price)}</div>
         <div className="drawer-addr">{l.address ?? "(no address)"}</div>
         <div className="card-meta">
           <span className="chip">
@@ -47,7 +48,7 @@ export default function DetailDrawer({
           </div>
         )}
         <div className="drawer-actions">
-          <button className="btn" onClick={() => onValue(l.id)}>£ Estimate value</button>
+          <button className="btn" onClick={() => onValue(l.id)}>⌂ Estimate value</button>
           <button className="btn ghost" onClick={() => onSimilar(l.id)}>◇ Similar-looking</button>
           <button className="btn ghost" onClick={() => onAddRoute(l.id)}>
             {inRoute ? "✓ In route" : "+ Add to route"}

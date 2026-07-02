@@ -1,5 +1,7 @@
 "use client";
 
+import { useCurrency } from "@/lib/currency";
+
 export interface LeadRow {
   id: string;
   raw_text: string | null;
@@ -33,6 +35,7 @@ export default function LeadInbox({
   onEdit: (lead: LeadRow) => void;
   onDelete: (id: string) => void;
 }) {
+  const { fmt } = useCurrency();
   if (loading) return <div className="empty">Loading leads…</div>;
   if (leads.length === 0)
     return <div className="empty">No leads yet — triage an enquiry or add one.</div>;
@@ -52,8 +55,8 @@ export default function LeadInbox({
               {b.bedrooms != null && <span className="chip">{b.bedrooms} bed</span>}
               {(b.minPrice != null || b.maxPrice != null) && (
                 <span className="chip">
-                  {b.minPrice != null ? `${b.minPrice.toLocaleString("pl-PL")} zł` : "0 zł"}–
-                  {b.maxPrice != null ? `${b.maxPrice.toLocaleString("pl-PL")} zł` : "∞"}
+                  {b.minPrice != null ? fmt(b.minPrice) : fmt(0)}–
+                  {b.maxPrice != null ? fmt(b.maxPrice) : "∞"}
                 </span>
               )}
               {b.location && <span className="chip">📍 {b.location}</span>}

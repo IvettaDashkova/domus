@@ -27,11 +27,12 @@ export async function POST(req: Request) {
     if ("response" in parsed) return parsed.response;
     const body = parsed.data;
 
-    const { resolveSession, demoAgencyId } = await import("@/lib/auth");
+    const { resolveSession } = await import("@/lib/auth");
     const session = await resolveSession();
     if (!session) return NextResponse.json({ error: "sign in to add a property" }, { status: 401 });
-    const agencyId = await demoAgencyId();
-    if (!agencyId) return NextResponse.json({ error: "no catalog" }, { status: 404 });
+    // Saved into the signed-in agent's OWN agency (private), shown alongside the
+    // shared demo catalog on their map.
+    const agencyId = session.agencyId;
 
     // Locate: known Polish city centre + small jitter, else geocode the address.
     let lat: number | null = null;

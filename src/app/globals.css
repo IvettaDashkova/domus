@@ -123,6 +123,7 @@ a {
   gap: 16px;
   padding: 16px;
   min-height: 0;
+  position: relative;
 }
 
 /* ── nav rail ───────────────────────────────────────────────────────────── */
@@ -829,10 +830,11 @@ a {
 .map-overlay {
   position: absolute;
   top: 14px;
-  left: 14px;
-  z-index: 2;
+  right: 14px;
+  z-index: 20;
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
 }
 
 .map-badge {
@@ -885,4 +887,199 @@ a {
 .list::-webkit-scrollbar-thumb {
   background: var(--border-strong);
   border-radius: 999px;
+}
+
+/* ── auth email chip (replaces the initials avatar) ─────────────────────── */
+.auth-email {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+/* ── small button variant (e.g. + Property in the panel head) ───────────── */
+.btn.sm {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+/* ── sidebar search (moved next to the filters) ─────────────────────────── */
+.sidebar-search {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+/* ── consistent native selects across the app ──────────────────────────── */
+select.nl-input,
+.filters select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+  cursor: pointer;
+}
+select.nl-input:focus,
+.filters select:focus {
+  border-color: var(--accent);
+}
+.filters select option,
+select.nl-input option {
+  background: var(--card);
+  color: var(--text);
+}
+
+/* ── "Yours" ownership badge ────────────────────────────────────────────── */
+.own-badge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+.pop-own {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 0 5px;
+  border-radius: 5px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* ── busy overlay (map + sidebar) while opening a lead ──────────────────── */
+.busy-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--bg) 62%, transparent);
+  backdrop-filter: blur(2px);
+  border-radius: 12px;
+}
+.busy-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 30px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+.busy-text {
+  font-size: 13px;
+  color: var(--muted);
+}
+.spinner {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 3px solid var(--border-strong);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── routing UX ─────────────────────────────────────────────────────────── */
+.route-toggle {
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+.route-toggle.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.route-hint {
+  position: absolute;
+  top: 58px;
+  left: 12px;
+  right: 12px;
+  z-index: 20;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--accent) 16%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 10px;
+  font-size: 12.5px;
+  color: var(--text);
+}
+.route-stops {
+  list-style: none;
+  margin: 4px 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.route-stop {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+}
+.rs-n {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 650;
+  display: grid;
+  place-items: center;
+}
+.rs-addr {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rs-btn {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+}
+.rs-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.rs-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.rs-btn.danger:hover {
+  border-color: #e5484d;
+  color: #e5484d;
+}
+.pin-start {
+  background: #17a34a !important;
+  cursor: grab;
 }

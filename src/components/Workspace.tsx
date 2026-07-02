@@ -15,9 +15,9 @@ import DetailDrawer from "@/components/DetailDrawer";
 import Onboarding from "@/components/Onboarding";
 import Logo from "@/components/Logo";
 import { categoryColor } from "@/lib/ui/category";
-import { zl, zlFull } from "@/lib/ui/money";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { useI18n, LangSwitcher } from "@/lib/i18n";
+import { useCurrency, CurrencySwitcher } from "@/lib/currency";
 
 export interface WorkspaceRow extends ListingRow {
   lng: number | null;
@@ -81,15 +81,14 @@ interface ValuationData {
 
 const TYPES = ["", "apartment", "house", "studio", "townhouse"];
 
-const fmtPrice = zl;
-
 const esc = (s: string) =>
   s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 
-function popupHtml(r: WorkspaceRow): string {
+function popupHtml(r: WorkspaceRow, fmtPrice: (n: number | null) => string): string {
   const beds = r.bedrooms != null ? ` · ${r.bedrooms} bed` : "";
+  const own = r.own ? `<span class="pop-own">Yours</span> ` : "";
   return (
-    `<div class="pop-addr">${esc(r.address ?? "(no address)")}</div>` +
+    `<div class="pop-addr">${own}${esc(r.address ?? "(no address)")}</div>` +
     `<div class="pop-meta">${esc(r.property_type ?? "property")}${beds} · ` +
     `<span class="pop-price">${fmtPrice(r.price)}</span></div>`
   );
@@ -103,8 +102,10 @@ export default function Workspace({
   userEmail: string | null;
 }) {
   const { t } = useI18n();
+  const { fmt, fmtShort, currency } = useCurrency();
   const [rows, setRows] = useState<WorkspaceRow[]>(initial);
   const [brief, setBrief] = useState("");
+  const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [beds, setBeds] = useState("");
   const [ptype, setPtype] = useState("");
@@ -211,6 +212,9 @@ export default function Workspace({
   const [alPrice, setAlPrice] = useState("");
   const [alType, setAlType] = useState("apartment");
   const [alBeds, setAlBeds] = useState("");
+  const [alArea, setAlArea] = useState("");
+  const [alBath, setAlBath] = useState("");
+  const [alFurnished, setAlFurnished] = useState(false);
   const [alDesc, setAlDesc] = useState("");
   const [alSaving, setAlSaving] = useState(false);
   const [alError, setAlError] = useState<string | null>(null);
@@ -218,6 +222,14 @@ export default function Workspace({
     setAlSaving(true);
     setAlError(null);
     try {
+      // Fold the extra structured fields into the description so they enrich the
+      // text embedding (and are shown in the listing) without a schema change.
+      const facts: string[] = [];
+      if (alArea) facts.push(`${alArea} m²`);
+      if (alBath) facts.push(`${alBath} bathroom${alBath === "1" ? "" : "s"}`);
+      if (alFurnished) facts.push("furnished");
+      const base = alDesc.trim() || `${alType} in ${alCity}. ${alAddress}.`;
+      const description = facts.length ? `${base} · ${facts.join(" · ")}.` : base;
       const res = await fetch("/api/listings", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -227,7 +239,7 @@ export default function Workspace({
           price: Number(alPrice),
           propertyType: alType,
           bedrooms: alBeds ? Number(alBeds) : undefined,
-          description: alDesc || undefined,
+          description,
         }),
       });
       const data = await res.json();
@@ -301,7 +313,9 @@ export default function Workspace({
   }
 
   // Viewing route
+  const [routeMode, setRouteMode] = useState(false);
   const [routeIds, setRouteIds] = useState<string[]>([]);
+  const [startPoint, setStartPoint] = useState<{ lng: number; lat: number } | null>(null);
   const [plan, setPlan] = useState<RoutePlanData | null>(null);
   const [routeLine, setRouteLine] = useState<RouteLine | null>(null);
   const [startTime, setStartTime] = useState("09:00");
@@ -315,21 +329,34 @@ export default function Workspace({
     setPlan(null);
     setRouteLine(null);
   }
+  function moveStop(i: number, dir: -1 | 1) {
+    setRouteIds((ids) => {
+      const j = i + dir;
+      if (j < 0 || j >= ids.length) return ids;
+      const next = [...ids];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+    setPlan(null);
+    setRouteLine(null);
+  }
   function clearRoute() {
     setRouteIds([]);
     setPlan(null);
     setRouteLine(null);
     setRouteError(null);
+    setStartPoint(null);
   }
   async function optimizeRoute() {
     setOptimizing(true);
     setRouteError(null);
     try {
+      const start = startPoint ?? { lng: view.lng, lat: view.lat };
       const res = await fetch("/api/route/plan", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          start: { lng: view.lng, lat: view.lat },
+          start,
           listingIds: routeIds,
           startTime,
           dwellMin: Number(dwell) || 30,
@@ -359,10 +386,11 @@ export default function Workspace({
           id: r.id,
           lng: r.lng as number,
           lat: r.lat as number,
-          html: popupHtml(r),
+          html: popupHtml(r, fmtShort),
           color: categoryColor(r.property_type),
         })),
-    [rows],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, currency],
   );
 
   async function search() {
@@ -380,6 +408,7 @@ export default function Workspace({
             body: JSON.stringify({
               brief,
               filters: {
+                minPrice: minPrice ? Number(minPrice) : null,
                 maxPrice: maxPrice ? Number(maxPrice) : null,
                 bedrooms: beds ? Number(beds) : null,
                 propertyType: ptype || null,
@@ -428,7 +457,7 @@ export default function Workspace({
     }
     const t = setTimeout(() => searchRef.current(), 300);
     return () => clearTimeout(t);
-  }, [ptype, maxPrice, beds, useLoc]);
+  }, [ptype, minPrice, maxPrice, beds, useLoc]);
 
   function selectListing(id: string) {
     const row = rows.find((r) => r.id === id);
@@ -446,6 +475,7 @@ export default function Workspace({
   function reset() {
     setRows(initial);
     setBrief("");
+    setMinPrice("");
     setMaxPrice("");
     setBeds("");
     setPtype("");
@@ -462,44 +492,15 @@ export default function Workspace({
           <Logo />
           Domus
         </div>
-        <form
-          className="search"
-          onSubmit={(e) => {
-            e.preventDefault();
-            search();
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="7" />
-            <path d="m21 21-4.3-4.3" />
-          </svg>
-          <input
-            value={brief}
-            onChange={(e) => setBrief(e.target.value)}
-            placeholder={visualMode ? t("tb.visualPlaceholder") : t("tb.searchPlaceholder")}
-          />
-          <button
-            type="button"
-            className={`vmode${visualMode ? " on" : ""}`}
-            title="Visual search (match on photos via CLIP)"
-            onClick={() => setVisualMode((v) => !v)}
-          >
-            ◇ visual
-          </button>
-        </form>
         <div className="topbar-spacer" />
+        <CurrencySwitcher />
         <LangSwitcher />
-        {userEmail && (
-          <button className="btn" onClick={() => setAddOpen(true)}>
-            {t("tb.property")}
-          </button>
-        )}
         <button className="btn triage-btn" onClick={() => setTriageOpen(true)}>
           {t("tb.triage")}
         </button>
         {userEmail ? (
           <div className="auth-chip">
-            <div className="avatar" title={userEmail}>{userEmail.slice(0, 2).toUpperCase()}</div>
+            <span className="auth-email" title={userEmail}>{userEmail}</span>
             <button className="btn ghost" onClick={signOut}>{t("tb.signout")}</button>
           </div>
         ) : (
@@ -508,6 +509,14 @@ export default function Workspace({
       </header>
 
       <div className="body">
+        {openingLead && (
+          <div className="busy-overlay">
+            <div className="busy-card">
+              <div className="spinner" />
+              <div className="busy-text">{t("busy.matching")}</div>
+            </div>
+          </div>
+        )}
         <nav className="rail">
           <button
             className={`rail-btn${nav === "discover" ? " on" : ""}`}
@@ -582,14 +591,45 @@ export default function Workspace({
           </aside>
         ) : (
         <aside className="panel">
-          {routeIds.length > 0 && (
+          {(routeMode || routeIds.length > 0) && (
             <div className="route-panel">
               <div className="route-head">
-                <span>🚗 Route · {routeIds.length} stop{routeIds.length > 1 ? "s" : ""}</span>
+                <span>🚗 Route · {routeIds.length} stop{routeIds.length === 1 ? "" : "s"}</span>
                 <button className="btn ghost" onClick={clearRoute}>
                   Clear
                 </button>
               </div>
+              {routeIds.length > 0 ? (
+                <ol className="route-stops">
+                  {routeIds.map((id, i) => {
+                    const r = rows.find((x) => x.id === id);
+                    return (
+                      <li key={id} className="route-stop">
+                        <span className="rs-n">{i + 1}</span>
+                        <span className="rs-addr">{r?.address ?? "(listing)"}</span>
+                        <button className="rs-btn" disabled={i === 0} onClick={() => moveStop(i, -1)} title="Move up">
+                          ↑
+                        </button>
+                        <button
+                          className="rs-btn"
+                          disabled={i === routeIds.length - 1}
+                          onClick={() => moveStop(i, 1)}
+                          title="Move down"
+                        >
+                          ↓
+                        </button>
+                        <button className="rs-btn danger" onClick={() => toggleRoute(id)} title="Remove stop">
+                          ✕
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ol>
+              ) : (
+                <div className="route-note">
+                  Click a listing&apos;s “+ route” button to add viewing stops.
+                </div>
+              )}
               <div className="route-opts">
                 <label>
                   Start
@@ -614,8 +654,16 @@ export default function Workspace({
                   round trip
                 </label>
               </div>
-              <div className="route-note">Start = map centre</div>
-              <button className="btn block" onClick={optimizeRoute} disabled={optimizing}>
+              <div className="route-note">
+                {startPoint
+                  ? "Start: your custom point ✓ (drag the S pin to adjust)"
+                  : "Start: map centre — click the map to set a custom start."}
+              </div>
+              <button
+                className="btn block"
+                onClick={optimizeRoute}
+                disabled={optimizing || routeIds.length < 1}
+              >
                 {optimizing ? "Optimizing…" : "Optimize route"}
               </button>
               {routeError && <div className="modal-err">{routeError}</div>}
@@ -639,6 +687,31 @@ export default function Workspace({
           )}
           <div className="controls">
             <div className="controls-title">{t("filters.title")}</div>
+            <form
+              className="search sidebar-search"
+              onSubmit={(e) => {
+                e.preventDefault();
+                search();
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+              <input
+                value={brief}
+                onChange={(e) => setBrief(e.target.value)}
+                placeholder={visualMode ? t("tb.visualPlaceholder") : t("tb.searchPlaceholder")}
+              />
+              <button
+                type="button"
+                className={`vmode${visualMode ? " on" : ""}`}
+                title="Visual search (match on photos via CLIP)"
+                onClick={() => setVisualMode((v) => !v)}
+              >
+                ◇ visual
+              </button>
+            </form>
             <div className="filters">
               <select value={ptype} onChange={(e) => setPtype(e.target.value)}>
                 {TYPES.map((ty) => (
@@ -647,6 +720,16 @@ export default function Workspace({
                   </option>
                 ))}
               </select>
+              <label className="near">
+                <input type="checkbox" checked={useLoc} onChange={(e) => setUseLoc(e.target.checked)} />
+                {t("filters.near")}
+              </label>
+              <input
+                type="number"
+                value={minPrice}
+                onChange={(e) => setMinPrice(e.target.value)}
+                placeholder={t("filters.minPrice")}
+              />
               <input
                 type="number"
                 value={maxPrice}
@@ -659,10 +742,6 @@ export default function Workspace({
                 onChange={(e) => setBeds(e.target.value)}
                 placeholder={t("filters.beds")}
               />
-              <label className="near">
-                <input type="checkbox" checked={useLoc} onChange={(e) => setUseLoc(e.target.checked)} />
-                {t("filters.near")}
-              </label>
             </div>
             <button className="btn block" onClick={search} disabled={loading}>
               {loading ? t("btn.searching") : t("btn.search")}
@@ -672,6 +751,11 @@ export default function Workspace({
           <div className="panel-head">
             <span className="panel-title">{matched ? t("panel.matches") : t("panel.listings")}</span>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              {userEmail && (
+                <button className="btn sm" onClick={() => setAddOpen(true)}>
+                  {t("tb.property")}
+                </button>
+              )}
               {matched && (
                 <button className="btn ghost" onClick={reset}>
                   Clear
@@ -690,8 +774,8 @@ export default function Workspace({
                 {leadBrief.bedrooms != null && <span className="chip">{leadBrief.bedrooms} bed</span>}
                 {(leadBrief.minPrice != null || leadBrief.maxPrice != null) && (
                   <span className="chip">
-                    {leadBrief.minPrice != null ? zlFull(leadBrief.minPrice) : "0 zł"}–
-                    {leadBrief.maxPrice != null ? zlFull(leadBrief.maxPrice) : "∞"}
+                    {leadBrief.minPrice != null ? fmt(leadBrief.minPrice) : fmt(0)}–
+                    {leadBrief.maxPrice != null ? fmt(leadBrief.maxPrice) : "∞"}
                   </span>
                 )}
                 {leadBrief.location && <span className="chip">📍 {leadBrief.location}</span>}
@@ -723,10 +807,25 @@ export default function Workspace({
               <span className="dot" style={{ background: "var(--pin-green)" }} />
               {markers.length} {t("onmap")}
             </div>
+            <button
+              className={`btn route-toggle${routeMode ? " on" : ""}`}
+              onClick={() => setRouteMode((v) => !v)}
+            >
+              🚗 {routeMode ? "Done planning" : "Plan a route"}
+            </button>
           </div>
+          {routeMode && (
+            <div className="route-hint">
+              Click listings to add stops · click the map (or drag the <b>S</b> pin) to set your start
+              point.
+            </div>
+          )}
           <Map
             markers={markers}
             onMoveEnd={setView}
+            onMarkerClick={selectListing}
+            onMapClick={(p) => routeMode && setStartPoint(p)}
+            startMarker={routeMode ? startPoint : null}
             focus={focus}
             routeLine={routeLine}
             routeStops={routeStops}
@@ -804,9 +903,9 @@ export default function Workspace({
                   {valuation.subject.address} · {valuation.subject.propertyType} ·{" "}
                   {valuation.subject.bedrooms} bed
                 </div>
-                <div className="val-estimate">{zlFull(valuation.estimate)}</div>
+                <div className="val-estimate">{fmt(valuation.estimate)}</div>
                 <div className="val-range">
-                  range {zlFull(valuation.low)} – {zlFull(valuation.high)}
+                  range {fmt(valuation.low)} – {fmt(valuation.high)}
                 </div>
                 <div className="val-meta">
                   <span className={`chip val-conf c${Math.round(valuation.confidence * 5)}`}>
@@ -817,7 +916,7 @@ export default function Workspace({
                   </span>
                   {valuation.actual != null && (
                     <span className="chip">
-                      actual {zlFull(valuation.actual)} · err {valuation.errorPct}%
+                      actual {fmt(valuation.actual)} · err {valuation.errorPct}%
                     </span>
                   )}
                 </div>
@@ -825,7 +924,7 @@ export default function Workspace({
                   <div className="val-comps-head">Comparable sales (weighted)</div>
                   {valuation.comps.slice(0, 8).map((c) => (
                     <div key={c.id} className="val-comp">
-                      <span className="vc-price">{zlFull(c.price)}</span>
+                      <span className="vc-price">{fmt(c.price)}</span>
                       <span className="vc-dist">{Math.round(c.distanceM)} m</span>
                       <span className="vc-beds">{c.bedrooms ?? "?"}b</span>
                       <span className="vc-addr">{c.address}</span>
@@ -849,7 +948,8 @@ export default function Workspace({
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-title">Add a property</div>
             <div className="modal-sub">
-              Adds to the shared catalogue — appears on the map for everyone.
+              Saved to your listings (badged “Yours”) and shown on your map alongside the shared
+              catalogue.
             </div>
             <div className="add-form">
               <input
@@ -885,6 +985,30 @@ export default function Workspace({
                   value={alBeds}
                   onChange={(e) => setAlBeds(e.target.value)}
                 />
+              </div>
+              <div className="add-row">
+                <input
+                  className="nl-input"
+                  type="number"
+                  placeholder="Area (m²)"
+                  value={alArea}
+                  onChange={(e) => setAlArea(e.target.value)}
+                />
+                <input
+                  className="nl-input"
+                  type="number"
+                  placeholder="Bathrooms"
+                  value={alBath}
+                  onChange={(e) => setAlBath(e.target.value)}
+                />
+                <label className="near" style={{ whiteSpace: "nowrap" }}>
+                  <input
+                    type="checkbox"
+                    checked={alFurnished}
+                    onChange={(e) => setAlFurnished(e.target.checked)}
+                  />
+                  Furnished
+                </label>
               </div>
               <textarea
                 className="nl-input"

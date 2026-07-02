@@ -5,23 +5,35 @@ import { currentUserEmail } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+async function agencyListings(agencyId: string): Promise<WorkspaceRow[]> {
+  const { withTenant } = await import("@/lib/db/tenant");
+  return withTenant(agencyId, (sql) =>
+    sql<WorkspaceRow[]>`
+      select id, address, price, bedrooms, property_type, image_url, tags,
+             st_x(geom::geometry) as lng, st_y(geom::geometry) as lat
+      from listings
+      where status = 'enriched'
+      order by created_at desc
+      limit 100`,
+  );
+}
+
 async function loadInitial(): Promise<WorkspaceRow[]> {
   try {
-    const { getAdminDb } = await import("@/lib/db/client");
-    const { withTenant } = await import("@/lib/db/tenant");
-    const admin = getAdminDb();
-    const [agency] = await admin<{ id: string }[]>`
-      select id from agencies order by created_at limit 1`;
-    if (!agency) return [];
-    return await withTenant(agency.id, (sql) =>
-      sql<WorkspaceRow[]>`
-        select id, address, price, bedrooms, property_type, image_url, tags,
-               st_x(geom::geometry) as lng, st_y(geom::geometry) as lat
-        from listings
-        where status = 'enriched'
-        order by created_at desc
-        limit 100`,
-    );
+    const { demoAgencyId, resolveSession } = await import("@/lib/auth");
+    const [demoId, session] = await Promise.all([demoAgencyId(), resolveSession()]);
+
+    // Shared public demo catalog (foreign listings everyone can browse).
+    const demo = demoId ? await agencyListings(demoId) : [];
+
+    // The signed-in agent's own listings (private to their agency).
+    const own =
+      session && session.agencyId !== demoId
+        ? (await agencyListings(session.agencyId)).map((r) => ({ ...r, own: true }))
+        : [];
+
+    // Own listings first so they're immediately visible.
+    return [...own, ...demo];
   } catch {
     return [];
   }

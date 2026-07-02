@@ -10,15 +10,13 @@ export async function POST(req: Request) {
     if ("response" in parsed) return parsed.response;
     const { listingId } = parsed.data;
 
-    const { getAdminDb } = await import("@/lib/db/client");
     const { withTenant } = await import("@/lib/db/tenant");
     const { findComps } = await import("@/lib/valuation/comps");
     const { valuate } = await import("@/lib/valuation/avm");
+    const { agencyForListing } = await import("@/lib/listings/scope");
 
-    const admin = getAdminDb();
-    const [agency] = await admin<{ id: string }[]>`
-      select id from agencies order by created_at limit 1`;
-    if (!agency) return NextResponse.json({ error: "no agency" }, { status: 404 });
+    const agency = await agencyForListing(listingId);
+    if (!agency) return NextResponse.json({ error: "listing not found" }, { status: 404 });
 
     const valuation = await withTenant(agency.id, async (sql) => {
       const [subject] = await sql<

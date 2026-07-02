@@ -12,14 +12,12 @@ export async function POST(req: Request) {
     const body = parsed.data;
     const brief = (body.brief ?? "").trim();
 
-    const { getAdminDb } = await import("@/lib/db/client");
     const { withTenant } = await import("@/lib/db/tenant");
     const { hybridMatch } = await import("@/lib/retrieval/hybrid");
+    const { scopedAgencies } = await import("@/lib/listings/scope");
 
-    const admin = getAdminDb();
-    const [agency] = await admin<{ id: string }[]>`
-      select id from agencies order by created_at limit 1`;
-    if (!agency) return NextResponse.json({ results: [] });
+    const scoped = await scopedAgencies();
+    if (!scoped.length) return NextResponse.json({ results: [] });
 
     // Embed the brief (semantic signal). Skipped when the brief is empty.
     let queryVec: number[] | null = null;
@@ -28,15 +26,25 @@ export async function POST(req: Request) {
       queryVec = await embedText(brief);
     }
 
-    const results = await withTenant(agency.id, (sql) =>
-      hybridMatch(sql, {
-        brief,
-        queryVec,
-        filters: body.filters,
-        location: body.location ?? null,
-        limit: Math.min(body.limit ?? 20, 100),
-      }),
+    const limit = Math.min(body.limit ?? 20, 100);
+    // Match own listings + the shared catalog, then merge on RRF score.
+    const perAgency = await Promise.all(
+      scoped.map((a) =>
+        withTenant(a.id, (sql) =>
+          hybridMatch(sql, {
+            brief,
+            queryVec,
+            filters: body.filters,
+            location: body.location ?? null,
+            limit,
+          }),
+        ).then((rows) => rows.map((r) => ({ ...r, own: a.own }))),
+      ),
     );
+    const results = perAgency
+      .flat()
+      .sort((x, y) => (Number(y.score) || 0) - (Number(x.score) || 0))
+      .slice(0, limit);
 
     return NextResponse.json({ count: results.length, results });
   } catch (err) {
