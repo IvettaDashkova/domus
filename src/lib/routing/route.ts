@@ -1,4 +1,11 @@
-import { travelTimeMatrix, routeGeometry, type Coord, type LineString } from "@/lib/routing/matrix";
+import {
+  travelTimeMatrix,
+  routeGeometry,
+  haversineMatrix,
+  straightLineGeometry,
+  type Coord,
+  type LineString,
+} from "@/lib/routing/matrix";
 import { solveTsp, tourCost } from "@/lib/routing/tsp";
 
 export interface PlanListing {
@@ -36,6 +43,7 @@ export interface RoutePlan {
   naiveDriveSec: number;
   savedSec: number;
   returnToStart: boolean;
+  mode: "osrm" | "estimated"; // "estimated" = straight-line fallback (no road data)
 }
 
 const parseTime = (t: string) => {
@@ -52,16 +60,43 @@ export async function planRoute(input: PlanInput): Promise<RoutePlan> {
   const dwell = (input.dwellMin ?? 30) * 60;
   const ret = input.returnToStart ?? true;
   const coords: Coord[] = [input.start, ...input.listings.map((l) => ({ lng: l.lng, lat: l.lat }))];
+  const est = haversineMatrix(coords);
 
-  const raw = await travelTimeMatrix(coords);
-  const d = raw.map((row) => row.map((v) => (v == null ? 1e9 : v))); // sanitize unroutable
+  // Try OSRM; fall back to straight-line estimates when it's unreachable or
+  // returns a degenerate all-zero matrix (coords outside the loaded road network,
+  // which OSRM snaps to a single boundary node → every leg reads 0).
+  let mode: "osrm" | "estimated" = "osrm";
+  let d: number[][];
+  try {
+    const raw = await travelTimeMatrix(coords);
+    // Replace unroutable (null) legs with the straight-line estimate.
+    d = raw.map((row, i) => row.map((v, j) => (v == null ? est[i][j] : v)));
+    const distinct = new Set(coords.map((c) => `${c.lng.toFixed(4)},${c.lat.toFixed(4)}`)).size;
+    let sum = 0;
+    for (const row of d) for (const v of row) sum += v;
+    if (distinct > 1 && sum < 1) throw new Error("degenerate OSRM matrix");
+  } catch {
+    mode = "estimated";
+    d = est;
+  }
 
   const naive = tourCost(d, coords.map((_, i) => i), ret);
   const { order, totalSeconds } = solveTsp(d, { start: 0, returnToStart: ret });
 
   const geoCoords = order.map((i) => coords[i]);
   if (ret) geoCoords.push(coords[order[0]]);
-  const geo = await routeGeometry(geoCoords);
+  let geojson: LineString;
+  if (mode === "osrm") {
+    try {
+      const geo = await routeGeometry(geoCoords);
+      geojson =
+        geo.geojson.coordinates.length >= 2 ? geo.geojson : straightLineGeometry(geoCoords);
+    } catch {
+      geojson = straightLineGeometry(geoCoords);
+    }
+  } else {
+    geojson = straightLineGeometry(geoCoords);
+  }
 
   const dayEnd = input.dayEnd ? parseTime(input.dayEnd) : null;
   let clock = parseTime(input.startTime ?? "09:00");
@@ -87,10 +122,11 @@ export async function planRoute(input: PlanInput): Promise<RoutePlan> {
 
   return {
     stops,
-    geojson: geo.geojson,
+    geojson,
     optimizedDriveSec: totalSeconds,
     naiveDriveSec: naive,
     savedSec: Math.max(0, naive - totalSeconds),
     returnToStart: ret,
+    mode,
   };
 }

@@ -1055,3 +1055,51 @@ select.nl-input option {
   background: #17a34a !important;
   cursor: grab;
 }
+
+/* Sidebar scrolls as one when the route panel + filters + list overflow. */
+.panel.side {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.panel.side .list {
+  overflow-y: visible;
+}
+
+/* Clean number fields — drop the mismatched native +/- spinners so min/max/
+   beds/area inputs match the app's flat inputs. */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Checkboxes adopt the accent colour. */
+.near input[type="checkbox"],
+.furnished-toggle input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+}
+.furnished-toggle {
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 7px 10px;
+  background: var(--card);
+  white-space: nowrap;
+  cursor: pointer;
+  font-size: 13px;
+}
+.furnished-toggle:hover {
+  border-color: var(--accent);
+}
+
+.itin-est {
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+  margin: 2px 0 6px;
+}

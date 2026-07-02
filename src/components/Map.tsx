@@ -69,6 +69,7 @@ export default function Map({
   onMapClick,
   startMarker,
   focus,
+  fit,
   routeLine,
   routeStops,
   highlightId,
@@ -79,6 +80,7 @@ export default function Map({
   onMapClick?: (p: { lng: number; lat: number }) => void;
   startMarker?: { lng: number; lat: number } | null;
   focus?: MapFocus | null;
+  fit?: { pts: [number, number][]; key: number } | null;
   routeLine?: RouteLine | null;
   routeStops?: RouteStop[] | null;
   highlightId?: string | null;
@@ -239,6 +241,26 @@ export default function Map({
       m.getElement().classList.toggle("pin-hi", id === highlightId);
     }
   }, [highlightId, markers]);
+
+  // Fit the map to a set of result points (e.g. the matched city cluster).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || !fit || !fit.pts.length) return;
+    if (fit.pts.length === 1) {
+      map.flyTo({ center: fit.pts[0], zoom: 12.5, speed: 1.2 });
+      return;
+    }
+    const lons = fit.pts.map((p) => p[0]);
+    const lats = fit.pts.map((p) => p[1]);
+    map.fitBounds(
+      [
+        [Math.min(...lons), Math.min(...lats)],
+        [Math.max(...lons), Math.max(...lats)],
+      ],
+      { padding: 80, maxZoom: 14, duration: 800 },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fit?.key, ready]);
 
   // Fly to a clicked listing and open its popup.
   useEffect(() => {

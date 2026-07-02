@@ -18,8 +18,10 @@ export async function POST(req: Request) {
     const scoped = await scopedAgencies();
     if (!scoped.length) return NextResponse.json({ error: "no agency" }, { status: 404 });
 
-    // Gather the selected listings from wherever they live (own agency + catalog).
-    const listings = (
+    // Gather the selected listings from wherever they live (own agency + catalog),
+    // de-duplicated by id (an id can only match one agency, but guard anyway) and
+    // ordered to match the caller's requested stop order.
+    const found = (
       await Promise.all(
         scoped.map((a) =>
           withTenant(a.id, (sql) =>
@@ -32,6 +34,11 @@ export async function POST(req: Request) {
         ),
       )
     ).flat();
+    const byId = new Map(found.map((l) => [l.id, l]));
+    const listings = body.listingIds!.flatMap((id) => {
+      const l = byId.get(id);
+      return l ? [l] : [];
+    });
     if (listings.length < 1) {
       return NextResponse.json({ error: "no routable listings" }, { status: 400 });
     }

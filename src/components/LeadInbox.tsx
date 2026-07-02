@@ -1,6 +1,7 @@
 "use client";
 
 import { useCurrency } from "@/lib/currency";
+import { useI18n } from "@/lib/i18n";
 
 export interface LeadRow {
   id: string;
@@ -36,9 +37,9 @@ export default function LeadInbox({
   onDelete: (id: string) => void;
 }) {
   const { fmt } = useCurrency();
-  if (loading) return <div className="empty">Loading leads…</div>;
-  if (leads.length === 0)
-    return <div className="empty">No leads yet — triage an enquiry or add one.</div>;
+  const { t } = useI18n();
+  if (loading) return <div className="empty">{t("inbox.loading")}</div>;
+  if (leads.length === 0) return <div className="empty">{t("inbox.empty")}</div>;
 
   return (
     <div className="list">

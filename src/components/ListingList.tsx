@@ -2,6 +2,7 @@
 
 import { categoryColor } from "@/lib/ui/category";
 import { useCurrency } from "@/lib/currency";
+import { useI18n } from "@/lib/i18n";
 
 export interface ListingRow {
   id: string;
@@ -36,8 +37,9 @@ export default function ListingList({
   onHover?: (id: string | null) => void;
 }) {
   const { fmtShort } = useCurrency();
+  const { t } = useI18n();
   if (listings.length === 0) {
-    return <div className="empty">No matches.</div>;
+    return <div className="empty">{t("list.empty")}</div>;
   }
   return (
     <div className="list">
