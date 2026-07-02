@@ -41,11 +41,18 @@ export default function LandingContent() {
         <div className="landing-cta">
           <Link href="/map" className="btn big">{t("landing.explore")}</Link>
           <Link href="/login" className="btn ghost big">{t("cta.signin")}</Link>
-          <a href="/IvettaDashkova_CV.pdf" download className="btn ghost big">{t("cta.cv")}</a>
+          <a
+            href="https://portfolio.ivettadashkova.com/IvettaDashkova_Resume.pdf"
+            target="_blank"
+            rel="noreferrer"
+            className="btn ghost big"
+          >
+            {t("cta.cv")}
+          </a>
         </div>
 
         <div className="landing-links">
-          <a href="https://github.com/IvettaDashkova" target="_blank" rel="noreferrer">{t("links.portfolio")}</a>
+          <a href="https://portfolio.ivettadashkova.com/" target="_blank" rel="noreferrer">{t("links.portfolio")}</a>
           <span>·</span>
           <a href="https://github.com/IvettaDashkova/domus" target="_blank" rel="noreferrer">{t("links.source")}</a>
           <span>·</span>
@@ -57,8 +64,7 @@ export default function LandingContent() {
 
       <section className="landing-figure">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className="landing-photo" src="/ivetta.jpg" alt="Ivetta Dashkova" />
-        <div className="speech">{t("landing.speech")}</div>
+        <img className="landing-photo" src="/ivetta-hero.png" alt="Ivetta Dashkova — illustrated intro" />
       </section>
     </main>
   );

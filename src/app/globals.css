@@ -299,34 +299,6 @@ a {
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
 }
-/* Warm cream bubble in the palette of the illustration, sat top-left,
-   clear of her face, tail pointing down towards her. */
-.speech {
-  position: absolute;
-  top: -10%;
-  left: -10%;
-  max-width: 250px;
-  z-index: 2;
-  background: #f2ece0;
-  color: #2a2620;
-  border: 1px solid rgba(0, 0, 0, 0.14);
-  border-radius: 18px;
-  padding: 14px 16px;
-  font-size: 13px;
-  line-height: 1.55;
-  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.45);
-}
-.speech b { color: #14110c; }
-.speech::after {
-  content: "";
-  position: absolute;
-  bottom: -11px;
-  right: 34px;
-  border: 11px solid transparent;
-  border-top-color: #f2ece0;
-  border-bottom: 0;
-}
-
 .lang-switch {
   display: inline-flex;
   gap: 2px;
