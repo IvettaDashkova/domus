@@ -33,7 +33,7 @@ export function CurrencyProvider({ children }: { children: React.ReactNode }) {
       if (saved === "EUR" || saved === "PLN") setCurrencyState(saved);
     });
     // today's PLN -> EUR rate (free, no key)
-    fetch("https://api.frankfurter.app/latest?base=PLN&symbols=EUR")
+    fetch("https://api.frankfurter.dev/v1/latest?base=PLN&symbols=EUR")
       .then((r) => r.json())
       .then((d) => {
         if (d?.rates?.EUR) setRate(d.rates.EUR);
