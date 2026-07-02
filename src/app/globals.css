@@ -326,6 +326,29 @@ a {
   border-bottom: 0;
 }
 
+.lang-switch {
+  display: inline-flex;
+  gap: 2px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px;
+}
+.lang-btn {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 4px 9px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.lang-btn.on { background: var(--accent); color: #fff; }
+
+.landing-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
 .landing-copy { max-width: 540px; }
 .landing-title {
   font-size: 34px;

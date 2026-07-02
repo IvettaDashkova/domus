@@ -17,6 +17,7 @@ import Logo from "@/components/Logo";
 import { categoryColor } from "@/lib/ui/category";
 import { zl, zlFull } from "@/lib/ui/money";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { useI18n, LangSwitcher } from "@/lib/i18n";
 
 export interface WorkspaceRow extends ListingRow {
   lng: number | null;
@@ -101,6 +102,7 @@ export default function Workspace({
   initial: WorkspaceRow[];
   userEmail: string | null;
 }) {
+  const { t } = useI18n();
   const [rows, setRows] = useState<WorkspaceRow[]>(initial);
   const [brief, setBrief] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
@@ -474,11 +476,7 @@ export default function Workspace({
           <input
             value={brief}
             onChange={(e) => setBrief(e.target.value)}
-            placeholder={
-              visualMode
-                ? "Describe how it should look…  (visual search, Enter)"
-                : "Describe the property a buyer wants…  (press Enter)"
-            }
+            placeholder={visualMode ? t("tb.visualPlaceholder") : t("tb.searchPlaceholder")}
           />
           <button
             type="button"
@@ -490,21 +488,22 @@ export default function Workspace({
           </button>
         </form>
         <div className="topbar-spacer" />
+        <LangSwitcher />
         {userEmail && (
           <button className="btn" onClick={() => setAddOpen(true)}>
-            + Property
+            {t("tb.property")}
           </button>
         )}
         <button className="btn triage-btn" onClick={() => setTriageOpen(true)}>
-          ✦ Triage lead
+          {t("tb.triage")}
         </button>
         {userEmail ? (
           <div className="auth-chip">
             <div className="avatar" title={userEmail}>{userEmail.slice(0, 2).toUpperCase()}</div>
-            <button className="btn ghost" onClick={signOut}>Sign out</button>
+            <button className="btn ghost" onClick={signOut}>{t("tb.signout")}</button>
           </div>
         ) : (
-          <Link href="/login" className="btn signin">Sign in</Link>
+          <Link href="/login" className="btn signin">{t("cta.signin")}</Link>
         )}
       </header>
 
@@ -513,14 +512,14 @@ export default function Workspace({
           <button
             className={`rail-btn${nav === "discover" ? " on" : ""}`}
             onClick={() => setNav("discover")}
-            title="Discover"
+            title={t("nav.discover")}
           >
             ◎
           </button>
           <button
             className={`rail-btn${nav === "leads" ? " on" : ""}`}
             onClick={goLeads}
-            title="Leads"
+            title={t("nav.leads")}
           >
             ✉
           </button>
@@ -529,7 +528,7 @@ export default function Workspace({
         {nav === "leads" ? (
           <aside className="panel">
             <div className="panel-head">
-              <span className="panel-title">Lead inbox</span>
+              <span className="panel-title">{t("panel.leadInbox")}</span>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 {userEmail && (
                   <button className="btn" onClick={openNewLead}>
@@ -639,12 +638,12 @@ export default function Workspace({
             </div>
           )}
           <div className="controls">
-            <div className="controls-title">Filters</div>
+            <div className="controls-title">{t("filters.title")}</div>
             <div className="filters">
               <select value={ptype} onChange={(e) => setPtype(e.target.value)}>
-                {TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t === "" ? "Any type" : t}
+                {TYPES.map((ty) => (
+                  <option key={ty} value={ty}>
+                    {ty === "" ? t("filters.anyType") : ty}
                   </option>
                 ))}
               </select>
@@ -652,26 +651,26 @@ export default function Workspace({
                 type="number"
                 value={maxPrice}
                 onChange={(e) => setMaxPrice(e.target.value)}
-                placeholder="Max zł"
+                placeholder={t("filters.maxPrice")}
               />
               <input
                 type="number"
                 value={beds}
                 onChange={(e) => setBeds(e.target.value)}
-                placeholder="Beds (est.)"
+                placeholder={t("filters.beds")}
               />
               <label className="near">
                 <input type="checkbox" checked={useLoc} onChange={(e) => setUseLoc(e.target.checked)} />
-                Near map
+                {t("filters.near")}
               </label>
             </div>
             <button className="btn block" onClick={search} disabled={loading}>
-              {loading ? "Searching…" : "Search"}
+              {loading ? t("btn.searching") : t("btn.search")}
             </button>
           </div>
 
           <div className="panel-head">
-            <span className="panel-title">{matched ? "Matches" : "Listings"}</span>
+            <span className="panel-title">{matched ? t("panel.matches") : t("panel.listings")}</span>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               {matched && (
                 <button className="btn ghost" onClick={reset}>
@@ -722,7 +721,7 @@ export default function Workspace({
           <div className="map-overlay">
             <div className="map-badge">
               <span className="dot" style={{ background: "var(--pin-green)" }} />
-              {markers.length} on map
+              {markers.length} {t("onmap")}
             </div>
           </div>
           <Map
