@@ -183,7 +183,7 @@ export default function Workspace({
   async function signOut() {
     const sb = supabaseBrowser();
     if (sb) await sb.auth.signOut();
-    window.location.reload();
+    window.location.href = "/"; // back to the landing page
   }
 
   // New / edit lead form (auth-gated)

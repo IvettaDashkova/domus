@@ -14,7 +14,8 @@ const FEATURES: [string, string, string][] = [
 export default function LandingContent() {
   const { t } = useI18n();
   return (
-    <main className="landing">
+    <main className="landing-bg">
+      <div className="landing">
       <section className="landing-copy">
         <div className="landing-top">
           <div className="brand" style={{ fontSize: 22 }}>
@@ -66,6 +67,7 @@ export default function LandingContent() {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img className="landing-photo" src="/ivetta-hero.png" alt="Ivetta Dashkova — illustrated intro" />
       </section>
+      </div>
     </main>
   );
 }

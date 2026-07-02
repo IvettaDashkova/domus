@@ -20,8 +20,19 @@ export async function travelTimeMatrix(coords: Coord[]): Promise<number[][]> {
   const url = `${osrmUrl()}/table/v1/driving/${path}?annotations=duration`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`OSRM /table HTTP ${res.status}`);
-  const j = (await res.json()) as { code: string; durations?: number[][] };
+  const j = (await res.json()) as {
+    code: string;
+    durations?: number[][];
+    sources?: ({ distance?: number } | null)[];
+    destinations?: ({ distance?: number } | null)[];
+  };
   if (j.code !== "Ok" || !j.durations) throw new Error(`OSRM /table: ${j.code}`);
+  // If a point snapped far from any road, it's outside the loaded network
+  // (e.g. Wrocław against a Warsaw-only extract) — OSRM then returns bogus
+  // durations from wherever it snapped. Reject so we fall back to estimates.
+  const snaps = [...(j.sources ?? []), ...(j.destinations ?? [])].map((s) => s?.distance ?? 0);
+  const maxSnap = snaps.length ? Math.max(...snaps) : 0;
+  if (maxSnap > 3000) throw new Error(`OSRM: point ${Math.round(maxSnap)}m from road (out of region)`);
   return j.durations;
 }
 
@@ -39,11 +50,14 @@ export function haversineMeters(a: Coord, b: Coord): number {
 }
 
 // Straight-line travel-time estimate when road data isn't available for these
-// coords (e.g. listings outside the loaded OSRM region). ~32 km/h urban average,
-// ×1.3 to approximate road detour vs. crow-flies.
-const EST_MPS = (32 * 1000) / 3600;
+// coords (e.g. listings outside the loaded OSRM region). City-centre driving
+// averages ~22 km/h with lights/traffic, and the road path is ~1.4× the
+// crow-flies distance — so we scale haversine metres accordingly.
+const URBAN_KMH = 22;
+const DETOUR = 1.4;
+const EST_MPS = (URBAN_KMH * 1000) / 3600;
 export function haversineMatrix(coords: Coord[]): number[][] {
-  return coords.map((a) => coords.map((b) => (haversineMeters(a, b) * 1.3) / EST_MPS));
+  return coords.map((a) => coords.map((b) => (haversineMeters(a, b) * DETOUR) / EST_MPS));
 }
 
 /** A simple polyline straight through the ordered waypoints. */

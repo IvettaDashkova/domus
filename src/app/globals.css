@@ -278,19 +278,27 @@ a {
 .onboard-dot.on { background: var(--accent); }
 
 /* ── landing ────────────────────────────────────────────────────────────── */
-.landing {
+/* Full-bleed background across the whole viewport… */
+.landing-bg {
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: 1.05fr 0.85fr;
+  width: 100%;
+  display: flex;
   align-items: center;
-  gap: 48px;
-  max-width: 1180px;
-  margin: 0 auto;
+  justify-content: center;
   padding: 40px 32px;
   background:
     radial-gradient(1000px 500px at 15% 0%, rgba(47, 107, 255, 0.1), transparent 60%),
     radial-gradient(900px 500px at 90% 100%, rgba(138, 77, 255, 0.08), transparent 60%),
     var(--bg);
+}
+/* …with the content constrained and centred. */
+.landing {
+  width: 100%;
+  max-width: 1180px;
+  display: grid;
+  grid-template-columns: 1.05fr 0.85fr;
+  align-items: center;
+  gap: 48px;
 }
 .landing-figure { position: relative; display: flex; justify-content: center; align-items: flex-end; }
 .landing-photo {
@@ -343,7 +351,8 @@ a {
 .landing-links a:hover { color: var(--accent); }
 
 @media (max-width: 860px) {
-  .landing { grid-template-columns: 1fr; gap: 8px; padding: 24px 18px; }
+  .landing-bg { padding: 24px 18px; }
+  .landing { grid-template-columns: 1fr; gap: 8px; }
   .landing-figure { display: none; }
 }
 
