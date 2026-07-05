@@ -8,7 +8,7 @@ on:
 
 jobs:
   check:
-    name: typecheck · lint · build
+    name: typecheck · lint · test · build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,6 +20,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm lint
+      - run: pnpm test
       # DB-touching routes are force-dynamic + lazy, so build needs no DATABASE_URL.
       - run: pnpm build
 

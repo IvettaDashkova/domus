@@ -33,8 +33,8 @@ cp .env.example .env.local            # dev values already match docker-compose
 pnpm osrm:prepare                     # downloads + processes a small OSM extract (once)
 docker compose up -d                  # Postgres (5434) + OSRM (5001)
 pnpm db:migrate                       # apply migrations
-pnpm db:seed                          # ~200 real listings + embeddings
-pnpm dev                              # http://localhost:3000
+pnpm db:seed                          # ~300 real listings + embeddings
+pnpm dev                              # http://localhost:3007
 ```
 
 ## Verification gates (Phase 0)
@@ -46,10 +46,10 @@ pnpm dev                              # http://localhost:3000
 | RLS isolation        | `pnpm db:rls-check`               |
 | Seed + embeddings    | `pnpm db:seed`                    |
 | Queue smoke job      | `pnpm smoke:job`                  |
-| OSRM route           | `curl localhost:5001/route/v1/driving/-1.2917,50.7000;-1.16,50.729` |
+| OSRM route           | `curl localhost:5001/route/v1/driving/17.0333,51.1093;17.07,51.12` |
 | Evals harness        | `pnpm evals`                      |
 | Build/lint/types     | `pnpm build` · `pnpm lint` · `pnpm typecheck` |
-| Health route         | `curl localhost:3000/api/health` |
+| Health route         | `curl localhost:3007/api/health` |
 
 ## Ingest pipeline (Phase 1)
 
