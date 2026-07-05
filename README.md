@@ -3,8 +3,12 @@
 [![CI](https://github.com/IvettaDashkova/domus/actions/workflows/ci.yml/badge.svg)](https://github.com/IvettaDashkova/domus/actions/workflows/ci.yml)
 
 Internal operations tool for a real-estate agency — lead triage, smart property
-matching on a map, viewing-route planning, comps/valuation, listing enrichment.
-Built on open data only. Real-estate instantiation of the Locus geo-AI template.
+matching on a map, viewing-route planning, comps/valuation, listing enrichment,
+and a **tool-calling AI assistant** (`/api/agent`) that grounds every answer in
+the agency's live catalog. Built on open data only. Real-estate instantiation of
+the Locus geo-AI template.
+
+📐 **[Architecture & design →](docs/ARCHITECTURE.md)**
 
 > **Phase 0** establishes a production-shaped skeleton with every verification
 > gate green. Feature logic lands in later phases.

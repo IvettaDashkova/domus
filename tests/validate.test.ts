@@ -5,6 +5,7 @@ import {
   visualSearchBody,
   createListingBody,
   valuationBody,
+  agentBody,
 } from "../src/lib/api/validate";
 
 const UUID = "7353f36e-ef61-4c3a-b951-3baa547e69c2";
@@ -96,5 +97,14 @@ describe("valuationBody", () => {
   it("requires a UUID listingId", () => {
     expect(valuationBody.safeParse({ listingId: "123" }).success).toBe(false);
     expect(valuationBody.safeParse({ listingId: UUID }).success).toBe(true);
+  });
+});
+
+describe("agentBody", () => {
+  it("accepts a non-empty message", () => {
+    expect(agentBody.safeParse({ message: "find me a studio in Wrocław" }).success).toBe(true);
+  });
+  it("rejects an empty message", () => {
+    expect(agentBody.safeParse({ message: "" }).success).toBe(false);
   });
 });

@@ -56,6 +56,7 @@ export const createListingBody = z.object({
   description: z.string().max(2000).optional(),
 });
 export const valuationBody = z.object({ listingId: z.string().uuid() });
+export const agentBody = z.object({ message: z.string().min(1).max(2000) });
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "expected HH:MM");
 export const routePlanBody = z.object({
   start: z.object({ lng: z.number(), lat: z.number() }),
