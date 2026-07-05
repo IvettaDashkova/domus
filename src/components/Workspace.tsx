@@ -12,10 +12,12 @@ import Link from "next/link";
 import ListingList, { type ListingRow } from "@/components/ListingList";
 import LeadInbox, { type LeadRow } from "@/components/LeadInbox";
 import DetailDrawer from "@/components/DetailDrawer";
+import Modal from "@/components/Modal";
 import Onboarding from "@/components/Onboarding";
 import Logo from "@/components/Logo";
 import { categoryColor } from "@/lib/ui/category";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { apiJson, postJson } from "@/lib/api/client";
 import { useI18n, LangSwitcher } from "@/lib/i18n";
 import { useCurrency, CurrencySwitcher } from "@/lib/currency";
 
@@ -57,6 +59,14 @@ interface RoutePlanData {
 
 const mins = (s: number) => `${Math.round(s / 60)}m`;
 
+// Normalize an API result array into ranked WorkspaceRows (rank = 1-based order).
+// Used by every search-like endpoint (match, visual, similar, triage, rerun).
+const ranked = (list: unknown): WorkspaceRow[] =>
+  (Array.isArray(list) ? (list as WorkspaceRow[]) : []).map((r, i) => ({
+    ...r,
+    rank: i + 1,
+  }));
+
 interface CompW {
   id: string;
   address: string | null;
@@ -67,7 +77,11 @@ interface CompW {
   weight: number;
 }
 interface ValuationData {
-  subject: { address: string | null; propertyType: string | null; bedrooms: number | null };
+  subject: {
+    address: string | null;
+    propertyType: string | null;
+    bedrooms: number | null;
+  };
   estimate: number;
   low: number;
   high: number;
@@ -83,9 +97,15 @@ interface ValuationData {
 const TYPES = ["", "apartment", "house", "studio", "townhouse"];
 
 const esc = (s: string) =>
-  s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+  s.replace(
+    /[&<>"]/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!,
+  );
 
-function popupHtml(r: WorkspaceRow, fmtPrice: (n: number | null) => string): string {
+function popupHtml(
+  r: WorkspaceRow,
+  fmtPrice: (n: number | null) => string,
+): string {
   const beds = r.bedrooms != null ? ` · ${r.bedrooms} bed` : "";
   const own = r.own ? `<span class="pop-own">Yours</span> ` : "";
   return (
@@ -103,7 +123,7 @@ export default function Workspace({
   userEmail: string | null;
 }) {
   const { t } = useI18n();
-  const { fmt, fmtShort, currency } = useCurrency();
+  const { fmt, fmtShort, currency, rate } = useCurrency();
   const [rows, setRows] = useState<WorkspaceRow[]>(initial);
   const [brief, setBrief] = useState("");
   const [minPrice, setMinPrice] = useState("");
@@ -112,11 +132,18 @@ export default function Workspace({
   const [ptype, setPtype] = useState("");
   const [useLoc, setUseLoc] = useState(false);
   const [visualMode, setVisualMode] = useState(false);
-  const [view, setView] = useState<MapView>({ lng: 19.4, lat: 52.0, radiusKm: 300 });
+  const [view, setView] = useState<MapView>({
+    lng: 19.4,
+    lat: 52.0,
+    radiusKm: 300,
+  });
   const [loading, setLoading] = useState(false);
   const [matched, setMatched] = useState(false);
   const [focus, setFocus] = useState<MapFocus | null>(null);
-  const [fit, setFit] = useState<{ pts: [number, number][]; key: number } | null>(null);
+  const [fit, setFit] = useState<{
+    pts: [number, number][];
+    key: number;
+  } | null>(null);
 
   // Zoom/pan the map to encompass a set of result listings (e.g. the city a
   // buyer asked for) so clustered matches aren't lost at the country zoom.
@@ -139,8 +166,7 @@ export default function Workspace({
     setNav("leads");
     setLeadsLoading(true);
     try {
-      const res = await fetch("/api/leads");
-      const data = await res.json();
+      const { data } = await apiJson<{ leads?: LeadRow[] }>("/api/leads");
       setLeads(data.leads ?? []);
     } finally {
       setLeadsLoading(false);
@@ -158,18 +184,10 @@ export default function Workspace({
     setRouteError(null);
     setStartPoint(null);
     try {
-      const res = await fetch("/api/leads/rerun", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ leadId: id }),
-      });
-      const data = await res.json();
-      if (res.ok) {
+      const { ok, data } = await postJson("/api/leads/rerun", { leadId: id });
+      if (ok) {
         setLeadBrief(data.brief);
-        const results = (data.results ?? []).map((r: WorkspaceRow, i: number) => ({
-          ...r,
-          rank: i + 1,
-        }));
+        const results = ranked(data.results);
         setRows(results);
         setMatched(true);
         setNav("discover");
@@ -206,18 +224,20 @@ export default function Workspace({
     setNewLeadOpen(true);
   }
   async function deleteLead(id: string) {
-    const res = await fetch(`/api/leads/${id}`, { method: "DELETE" });
-    if (res.ok) goLeads();
+    const { ok } = await apiJson(`/api/leads/${id}`, { method: "DELETE" });
+    if (ok) goLeads();
   }
   async function submitNewLead() {
     setNlSaving(true);
     try {
-      const res = await fetch(editingLeadId ? `/api/leads/${editingLeadId}` : "/api/leads", {
-        method: editingLeadId ? "PATCH" : "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ enquiry: nlEnquiry, contact: nlContact || undefined }),
-      });
-      if (res.ok) {
+      const { ok } = await apiJson(
+        editingLeadId ? `/api/leads/${editingLeadId}` : "/api/leads",
+        {
+          method: editingLeadId ? "PATCH" : "POST",
+          body: { enquiry: nlEnquiry, contact: nlContact || undefined },
+        },
+      );
+      if (ok) {
         setNewLeadOpen(false);
         setEditingLeadId(null);
         setNlContact("");
@@ -253,21 +273,18 @@ export default function Workspace({
       if (alBath) facts.push(`${alBath} bathroom${alBath === "1" ? "" : "s"}`);
       if (alFurnished) facts.push("furnished");
       const base = alDesc.trim() || `${alType} in ${alCity}. ${alAddress}.`;
-      const description = facts.length ? `${base} · ${facts.join(" · ")}.` : base;
-      const res = await fetch("/api/listings", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          address: alAddress,
-          city: alCity,
-          price: Number(alPrice),
-          propertyType: alType,
-          bedrooms: alBeds ? Number(alBeds) : undefined,
-          description,
-        }),
+      const description = facts.length
+        ? `${base} · ${facts.join(" · ")}.`
+        : base;
+      const { ok, data } = await postJson("/api/listings", {
+        address: alAddress,
+        city: alCity,
+        price: Number(alPrice),
+        propertyType: alType,
+        bedrooms: alBeds ? Number(alBeds) : undefined,
+        description,
       });
-      const data = await res.json();
-      if (!res.ok) {
+      if (!ok) {
         setAlError(data.error ?? "failed");
         return;
       }
@@ -290,25 +307,15 @@ export default function Workspace({
     setTriaging(true);
     setTriageError(null);
     try {
-      const res = await fetch("/api/leads/triage", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ enquiry }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
+      const { ok, data } = await postJson("/api/leads/triage", { enquiry });
+      if (!ok) {
         setTriageError(data.error ?? "triage failed");
         return;
       }
       setLeadBrief(data.brief);
-      {
-        const results = (data.results ?? []).map((r: WorkspaceRow, i: number) => ({
-          ...r,
-          rank: i + 1,
-        }));
-        setRows(results);
-        fitToResults(results);
-      }
+      const results = ranked(data.results);
+      setRows(results);
+      fitToResults(results);
       setMatched(true);
       setTriageOpen(false);
     } catch (e) {
@@ -328,13 +335,8 @@ export default function Workspace({
     setValError(null);
     setValuation(null);
     try {
-      const res = await fetch("/api/valuation", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ listingId }),
-      });
-      const data = await res.json();
-      if (!res.ok) setValError(data.error ?? "valuation failed");
+      const { ok, data } = await postJson("/api/valuation", { listingId });
+      if (!ok) setValError(data.error ?? "valuation failed");
       else setValuation(data);
     } catch (e) {
       setValError((e as Error).message);
@@ -346,7 +348,10 @@ export default function Workspace({
   // Viewing route
   const [routeMode, setRouteMode] = useState(false);
   const [routeIds, setRouteIds] = useState<string[]>([]);
-  const [startPoint, setStartPoint] = useState<{ lng: number; lat: number } | null>(null);
+  const [startPoint, setStartPoint] = useState<{
+    lng: number;
+    lat: number;
+  } | null>(null);
   const [plan, setPlan] = useState<RoutePlanData | null>(null);
   const [routeLine, setRouteLine] = useState<RouteLine | null>(null);
   const [startTime, setStartTime] = useState("09:00");
@@ -356,7 +361,9 @@ export default function Workspace({
   const [routeError, setRouteError] = useState<string | null>(null);
 
   function toggleRoute(id: string) {
-    setRouteIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+    setRouteIds((ids) =>
+      ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id],
+    );
     setPlan(null);
     setRouteLine(null);
   }
@@ -383,20 +390,15 @@ export default function Workspace({
     setRouteError(null);
     try {
       const start = startPoint ?? { lng: view.lng, lat: view.lat };
-      const res = await fetch("/api/route/plan", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          start,
-          listingIds: routeIds,
-          startTime,
-          dwellMin: Number(dwell) || 30,
-          returnToStart,
-          dayEnd: "17:00",
-        }),
+      const { ok, data } = await postJson("/api/route/plan", {
+        start,
+        listingIds: routeIds,
+        startTime,
+        dwellMin: Number(dwell) || 30,
+        returnToStart,
+        dayEnd: "17:00",
       });
-      const data = await res.json();
-      if (!res.ok) {
+      if (!ok) {
         setRouteError(data.error ?? "route failed");
         return;
       }
@@ -453,23 +455,31 @@ export default function Workspace({
           html: popupHtml(r, fmtShort),
           color: categoryColor(r.property_type),
         })),
+    // fmtShort is a fresh closure each render but is a pure fn of (currency, rate);
+    // tracking those inputs re-renders popups when the live EUR rate arrives.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rows, currency],
+    [rows, currency, rate],
   );
 
+  // Ignore-stale guard: rapid filter changes / repeated searches can resolve
+  // out of order, so a slower older response must not overwrite a fresher one.
+  const searchAbort = useRef<AbortController | null>(null);
+  function nextSearch(): AbortController {
+    searchAbort.current?.abort();
+    const ac = new AbortController();
+    searchAbort.current = ac;
+    return ac;
+  }
+
   async function search() {
+    const ac = nextSearch();
     setLoading(true);
     try {
-      const res = visualMode
-        ? await fetch("/api/visual-search", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ query: brief }),
-          })
-        : await fetch("/api/match", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({
+      const { data } = visualMode
+        ? await postJson("/api/visual-search", { query: brief }, ac.signal)
+        : await postJson(
+            "/api/match",
+            {
               brief,
               filters: {
                 minPrice: minPrice ? Number(minPrice) : null,
@@ -477,34 +487,37 @@ export default function Workspace({
                 bedrooms: beds ? Number(beds) : null,
                 propertyType: ptype || null,
               },
-              location: useLoc ? { lat: view.lat, lng: view.lng, radiusKm: view.radiusKm } : null,
+              location: useLoc
+                ? { lat: view.lat, lng: view.lng, radiusKm: view.radiusKm }
+                : null,
               limit: 50,
-            }),
-          });
-      const data = await res.json();
-      const results: WorkspaceRow[] = (data.results ?? []).map(
-        (r: WorkspaceRow, i: number) => ({ ...r, rank: i + 1 }),
-      );
-      setRows(results);
+            },
+            ac.signal,
+          );
+      setRows(ranked(data.results));
       setMatched(true);
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") throw e;
     } finally {
-      setLoading(false);
+      if (searchAbort.current === ac) setLoading(false);
     }
   }
 
   async function similar(listingId: string) {
+    const ac = nextSearch();
     setLoading(true);
     try {
-      const res = await fetch("/api/listings/similar", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ listingId }),
-      });
-      const data = await res.json();
-      setRows((data.results ?? []).map((r: WorkspaceRow, i: number) => ({ ...r, rank: i + 1 })));
+      const { data } = await postJson(
+        "/api/listings/similar",
+        { listingId },
+        ac.signal,
+      );
+      setRows(ranked(data.results));
       setMatched(true);
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") throw e;
     } finally {
-      setLoading(false);
+      if (searchAbort.current === ac) setLoading(false);
     }
   }
 
@@ -534,7 +547,9 @@ export default function Workspace({
   const routeStops: RouteStop[] = plan
     ? plan.stops.map((s) => ({ lng: s.lng, lat: s.lat, n: s.position }))
     : [];
-  const detailRow = detailId ? rows.find((r) => r.id === detailId) ?? null : null;
+  const detailRow = detailId
+    ? (rows.find((r) => r.id === detailId) ?? null)
+    : null;
 
   function reset() {
     setRows(initial);
@@ -564,11 +579,17 @@ export default function Workspace({
         </button>
         {userEmail ? (
           <div className="auth-chip">
-            <span className="auth-email" title={userEmail}>{userEmail}</span>
-            <button className="btn ghost" onClick={signOut}>{t("tb.signout")}</button>
+            <span className="auth-email" title={userEmail}>
+              {userEmail}
+            </span>
+            <button className="btn ghost" onClick={signOut}>
+              {t("tb.signout")}
+            </button>
           </div>
         ) : (
-          <Link href="/login" className="btn signin">{t("cta.signin")}</Link>
+          <Link href="/login" className="btn signin">
+            {t("cta.signin")}
+          </Link>
         )}
       </header>
 
@@ -618,7 +639,9 @@ export default function Workspace({
             )}
             {newLeadOpen && userEmail && (
               <div className="controls">
-                <div className="controls-title">{editingLeadId ? t("lead.edit") : t("lead.new")}</div>
+                <div className="controls-title">
+                  {editingLeadId ? t("lead.edit") : t("lead.new")}
+                </div>
                 <input
                   className="nl-input"
                   placeholder={t("lead.contact")}
@@ -633,12 +656,30 @@ export default function Workspace({
                   onChange={(e) => setNlEnquiry(e.target.value)}
                 />
                 <div className="nl-hint">{t("lead.hint")}</div>
-                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 }}>
-                  <button className="btn ghost" onClick={() => setNewLeadOpen(false)}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    justifyContent: "flex-end",
+                    marginTop: 8,
+                  }}
+                >
+                  <button
+                    className="btn ghost"
+                    onClick={() => setNewLeadOpen(false)}
+                  >
                     {t("common.cancel")}
                   </button>
-                  <button className="btn" onClick={submitNewLead} disabled={nlSaving || !nlEnquiry.trim()}>
-                    {nlSaving ? "…" : editingLeadId ? t("lead.save") : t("lead.add")}
+                  <button
+                    className="btn"
+                    onClick={submitNewLead}
+                    disabled={nlSaving || !nlEnquiry.trim()}
+                  >
+                    {nlSaving
+                      ? "…"
+                      : editingLeadId
+                        ? t("lead.save")
+                        : t("lead.add")}
                   </button>
                 </div>
               </div>
@@ -654,228 +695,291 @@ export default function Workspace({
             />
           </aside>
         ) : (
-        <aside className="panel side">
-          {(routeMode || routeIds.length > 0) && (
-            <div className="route-panel">
-              <div className="route-head">
-                <span>
-                  🚗 {t("route.title")} · {routeIds.length}{" "}
-                  {routeIds.length === 1 ? t("route.stop") : t("route.stops")}
-                </span>
-                <button className="btn ghost" onClick={clearRoute}>
-                  {t("common.clear")}
+          <aside className="panel side">
+            {(routeMode || routeIds.length > 0) && (
+              <div className="route-panel">
+                <div className="route-head">
+                  <span>
+                    🚗 {t("route.title")} · {routeIds.length}{" "}
+                    {routeIds.length === 1 ? t("route.stop") : t("route.stops")}
+                  </span>
+                  <button className="btn ghost" onClick={clearRoute}>
+                    {t("common.clear")}
+                  </button>
+                </div>
+                {routeIds.length > 0 ? (
+                  <ol className="route-stops">
+                    {routeIds.map((id, i) => {
+                      const r = rows.find((x) => x.id === id);
+                      return (
+                        <li key={id} className="route-stop">
+                          <span className="rs-n">{i + 1}</span>
+                          <span className="rs-addr">
+                            {r?.address ?? "(listing)"}
+                          </span>
+                          <button
+                            className="rs-btn"
+                            disabled={i === 0}
+                            onClick={() => moveStop(i, -1)}
+                            title="Move up"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            className="rs-btn"
+                            disabled={i === routeIds.length - 1}
+                            onClick={() => moveStop(i, 1)}
+                            title="Move down"
+                          >
+                            ↓
+                          </button>
+                          <button
+                            className="rs-btn danger"
+                            onClick={() => toggleRoute(id)}
+                            title="Remove stop"
+                          >
+                            ✕
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                ) : (
+                  <div className="route-note">{t("route.addHint")}</div>
+                )}
+                <div className="route-opts">
+                  <label>
+                    {t("route.start")}
+                    <input
+                      type="time"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    {t("route.dwell")}
+                    <input
+                      type="number"
+                      value={dwell}
+                      onChange={(e) => setDwell(e.target.value)}
+                      style={{ width: 46 }}
+                    />
+                    m
+                  </label>
+                  <label className="near">
+                    <input
+                      type="checkbox"
+                      checked={returnToStart}
+                      onChange={(e) => setReturnToStart(e.target.checked)}
+                    />
+                    {t("route.roundtrip")}
+                  </label>
+                </div>
+                <div className="route-note">
+                  {startPoint ? t("route.startCustom") : t("route.startCentre")}
+                </div>
+                <button
+                  className="btn block"
+                  onClick={optimizeRoute}
+                  disabled={optimizing || routeIds.length < 1}
+                >
+                  {optimizing ? t("route.optimizing") : t("route.optimize")}
                 </button>
+                {routeError && <div className="modal-err">{routeError}</div>}
+                {plan && (
+                  <div className="itin">
+                    <div className="itin-saved">
+                      {t("route.saved")} {mins(plan.savedSec)} ·{" "}
+                      {mins(plan.optimizedDriveSec)} {t("route.drive")} (vs{" "}
+                      {mins(plan.naiveDriveSec)})
+                    </div>
+                    {plan.mode === "estimated" && (
+                      <div className="itin-est">{t("route.estimated")}</div>
+                    )}
+                    {plan.stops.map((s) => (
+                      <div
+                        key={s.position}
+                        className={`itin-row${s.late ? " late" : ""}`}
+                      >
+                        <span className="itin-num">{s.position}</span>
+                        <span className="itin-time">{s.arrival}</span>
+                        <span className="itin-addr">{s.address}</span>
+                        {s.position > 0 && (
+                          <span className="itin-leg">
+                            +{mins(s.legFromPrevSec)}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                    <button className="btn ghost block" onClick={printRoute}>
+                      🖨 {t("route.print")}
+                    </button>
+                  </div>
+                )}
               </div>
-              {routeIds.length > 0 ? (
-                <ol className="route-stops">
-                  {routeIds.map((id, i) => {
-                    const r = rows.find((x) => x.id === id);
-                    return (
-                      <li key={id} className="route-stop">
-                        <span className="rs-n">{i + 1}</span>
-                        <span className="rs-addr">{r?.address ?? "(listing)"}</span>
-                        <button className="rs-btn" disabled={i === 0} onClick={() => moveStop(i, -1)} title="Move up">
-                          ↑
-                        </button>
-                        <button
-                          className="rs-btn"
-                          disabled={i === routeIds.length - 1}
-                          onClick={() => moveStop(i, 1)}
-                          title="Move down"
-                        >
-                          ↓
-                        </button>
-                        <button className="rs-btn danger" onClick={() => toggleRoute(id)} title="Remove stop">
-                          ✕
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ol>
-              ) : (
-                <div className="route-note">{t("route.addHint")}</div>
+            )}
+            <div className="controls">
+              <div className="controls-title">{t("filters.title")}</div>
+              <form
+                className="search sidebar-search"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  search();
+                }}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
+                <input
+                  value={brief}
+                  onChange={(e) => setBrief(e.target.value)}
+                  placeholder={
+                    visualMode
+                      ? t("tb.visualPlaceholder")
+                      : t("tb.searchPlaceholder")
+                  }
+                />
+                <button
+                  type="button"
+                  className={`vmode${visualMode ? " on" : ""}`}
+                  title={t("search.visualHint")}
+                  onClick={() => setVisualMode((v) => !v)}
+                >
+                  ◇ visual
+                </button>
+              </form>
+              {visualMode && (
+                <div className="nl-hint">{t("search.visualHint")}</div>
               )}
-              <div className="route-opts">
-                <label>
-                  {t("route.start")}
-                  <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-                </label>
-                <label>
-                  {t("route.dwell")}
-                  <input
-                    type="number"
-                    value={dwell}
-                    onChange={(e) => setDwell(e.target.value)}
-                    style={{ width: 46 }}
-                  />
-                  m
-                </label>
+              <div className="filters">
+                <select
+                  value={ptype}
+                  onChange={(e) => setPtype(e.target.value)}
+                >
+                  {TYPES.map((ty) => (
+                    <option key={ty} value={ty}>
+                      {ty === "" ? t("filters.anyType") : ty}
+                    </option>
+                  ))}
+                </select>
                 <label className="near">
                   <input
                     type="checkbox"
-                    checked={returnToStart}
-                    onChange={(e) => setReturnToStart(e.target.checked)}
+                    checked={useLoc}
+                    onChange={(e) => setUseLoc(e.target.checked)}
                   />
-                  {t("route.roundtrip")}
+                  {t("filters.near")}
                 </label>
+                <input
+                  type="number"
+                  value={minPrice}
+                  onChange={(e) => setMinPrice(e.target.value)}
+                  placeholder={t("filters.minPrice")}
+                />
+                <input
+                  type="number"
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(e.target.value)}
+                  placeholder={t("filters.maxPrice")}
+                />
+                <input
+                  type="number"
+                  value={beds}
+                  onChange={(e) => setBeds(e.target.value)}
+                  placeholder={t("filters.beds")}
+                />
               </div>
-              <div className="route-note">
-                {startPoint ? t("route.startCustom") : t("route.startCentre")}
-              </div>
-              <button
-                className="btn block"
-                onClick={optimizeRoute}
-                disabled={optimizing || routeIds.length < 1}
-              >
-                {optimizing ? t("route.optimizing") : t("route.optimize")}
+              <button className="btn block" onClick={search} disabled={loading}>
+                {loading ? t("btn.searching") : t("btn.search")}
               </button>
-              {routeError && <div className="modal-err">{routeError}</div>}
-              {plan && (
-                <div className="itin">
-                  <div className="itin-saved">
-                    {t("route.saved")} {mins(plan.savedSec)} · {mins(plan.optimizedDriveSec)}{" "}
-                    {t("route.drive")} (vs {mins(plan.naiveDriveSec)})
-                  </div>
-                  {plan.mode === "estimated" && (
-                    <div className="itin-est">{t("route.estimated")}</div>
-                  )}
-                  {plan.stops.map((s) => (
-                    <div key={s.position} className={`itin-row${s.late ? " late" : ""}`}>
-                      <span className="itin-num">{s.position}</span>
-                      <span className="itin-time">{s.arrival}</span>
-                      <span className="itin-addr">{s.address}</span>
-                      {s.position > 0 && <span className="itin-leg">+{mins(s.legFromPrevSec)}</span>}
-                    </div>
-                  ))}
-                  <button className="btn ghost block" onClick={printRoute}>
-                    🖨 {t("route.print")}
-                  </button>
-                </div>
-              )}
             </div>
-          )}
-          <div className="controls">
-            <div className="controls-title">{t("filters.title")}</div>
-            <form
-              className="search sidebar-search"
-              onSubmit={(e) => {
-                e.preventDefault();
-                search();
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="11" cy="11" r="7" />
-                <path d="m21 21-4.3-4.3" />
-              </svg>
-              <input
-                value={brief}
-                onChange={(e) => setBrief(e.target.value)}
-                placeholder={visualMode ? t("tb.visualPlaceholder") : t("tb.searchPlaceholder")}
-              />
-              <button
-                type="button"
-                className={`vmode${visualMode ? " on" : ""}`}
-                title={t("search.visualHint")}
-                onClick={() => setVisualMode((v) => !v)}
-              >
-                ◇ visual
-              </button>
-            </form>
-            {visualMode && <div className="nl-hint">{t("search.visualHint")}</div>}
-            <div className="filters">
-              <select value={ptype} onChange={(e) => setPtype(e.target.value)}>
-                {TYPES.map((ty) => (
-                  <option key={ty} value={ty}>
-                    {ty === "" ? t("filters.anyType") : ty}
-                  </option>
-                ))}
-              </select>
-              <label className="near">
-                <input type="checkbox" checked={useLoc} onChange={(e) => setUseLoc(e.target.checked)} />
-                {t("filters.near")}
-              </label>
-              <input
-                type="number"
-                value={minPrice}
-                onChange={(e) => setMinPrice(e.target.value)}
-                placeholder={t("filters.minPrice")}
-              />
-              <input
-                type="number"
-                value={maxPrice}
-                onChange={(e) => setMaxPrice(e.target.value)}
-                placeholder={t("filters.maxPrice")}
-              />
-              <input
-                type="number"
-                value={beds}
-                onChange={(e) => setBeds(e.target.value)}
-                placeholder={t("filters.beds")}
-              />
-            </div>
-            <button className="btn block" onClick={search} disabled={loading}>
-              {loading ? t("btn.searching") : t("btn.search")}
-            </button>
-          </div>
 
-          <div className="panel-head">
-            <span className="panel-title">{matched ? t("panel.matches") : t("panel.listings")}</span>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              {userEmail && (
-                <button className="btn sm" onClick={() => setAddOpen(true)}>
-                  {t("tb.property")}
-                </button>
-              )}
-              {matched && (
-                <button className="btn ghost" onClick={reset}>
-                  {t("common.clear")}
-                </button>
-              )}
-              <span className="count-pill">{rows.length}</span>
-            </div>
-          </div>
-          {leadBrief && (
-            <div className="brief">
-              <div className="brief-head">{t("brief.head")}</div>
-              <div className="brief-chips">
-                {leadBrief.propertyType && leadBrief.propertyType !== "any" && (
-                  <span className="chip">{leadBrief.propertyType}</span>
+            <div className="panel-head">
+              <span className="panel-title">
+                {matched ? t("panel.matches") : t("panel.listings")}
+              </span>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {userEmail && (
+                  <button className="btn sm" onClick={() => setAddOpen(true)}>
+                    {t("tb.property")}
+                  </button>
                 )}
-                {leadBrief.bedrooms != null && <span className="chip">{leadBrief.bedrooms} bed</span>}
-                {(leadBrief.minPrice != null || leadBrief.maxPrice != null) && (
-                  <span className="chip">
-                    {leadBrief.minPrice != null ? fmt(leadBrief.minPrice) : fmt(0)}–
-                    {leadBrief.maxPrice != null ? fmt(leadBrief.maxPrice) : "∞"}
-                  </span>
+                {matched && (
+                  <button className="btn ghost" onClick={reset}>
+                    {t("common.clear")}
+                  </button>
                 )}
-                {leadBrief.location && <span className="chip">📍 {leadBrief.location}</span>}
-                {leadBrief.mustHaves.map((m) => (
-                  <span key={m} className="chip want">+ {m}</span>
-                ))}
-                {leadBrief.excludes.map((x) => (
-                  <span key={x} className="chip exclude">− {x}</span>
-                ))}
+                <span className="count-pill">{rows.length}</span>
               </div>
             </div>
-          )}
-          <ListingList
-            listings={rows}
-            onSelect={selectListing}
-            selectedId={focus?.id}
-            onAddRoute={toggleRoute}
-            routeIds={new Set(routeIds)}
-            onValue={valuate}
-            onSimilar={similar}
-            onHover={setHoveredId}
-          />
-        </aside>
+            {leadBrief && (
+              <div className="brief">
+                <div className="brief-head">{t("brief.head")}</div>
+                <div className="brief-chips">
+                  {leadBrief.propertyType &&
+                    leadBrief.propertyType !== "any" && (
+                      <span className="chip">{leadBrief.propertyType}</span>
+                    )}
+                  {leadBrief.bedrooms != null && (
+                    <span className="chip">{leadBrief.bedrooms} bed</span>
+                  )}
+                  {(leadBrief.minPrice != null ||
+                    leadBrief.maxPrice != null) && (
+                    <span className="chip">
+                      {leadBrief.minPrice != null
+                        ? fmt(leadBrief.minPrice)
+                        : fmt(0)}
+                      –
+                      {leadBrief.maxPrice != null
+                        ? fmt(leadBrief.maxPrice)
+                        : "∞"}
+                    </span>
+                  )}
+                  {leadBrief.location && (
+                    <span className="chip">📍 {leadBrief.location}</span>
+                  )}
+                  {leadBrief.mustHaves.map((m) => (
+                    <span key={m} className="chip want">
+                      + {m}
+                    </span>
+                  ))}
+                  {leadBrief.excludes.map((x) => (
+                    <span key={x} className="chip exclude">
+                      − {x}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <ListingList
+              listings={rows}
+              onSelect={selectListing}
+              selectedId={focus?.id}
+              onAddRoute={toggleRoute}
+              routeIds={new Set(routeIds)}
+              onValue={valuate}
+              onSimilar={similar}
+              onHover={setHoveredId}
+            />
+          </aside>
         )}
 
         <section className="panel map-wrap">
           {!detailRow && (
             <div className="map-overlay">
               <div className="map-badge">
-                <span className="dot" style={{ background: "var(--pin-green)" }} />
+                <span
+                  className="dot"
+                  style={{ background: "var(--pin-green)" }}
+                />
                 {markers.length} {t("onmap")}
               </div>
               <button
@@ -918,186 +1022,211 @@ export default function Workspace({
       </div>
 
       {triageOpen && (
-        <div className="modal-backdrop" onClick={() => !triaging && setTriageOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-title">{t("triage.title")}</div>
-            <div className="modal-sub">{t("triage.sub")}</div>
-            <textarea
-              value={enquiry}
-              onChange={(e) => setEnquiry(e.target.value)}
-              rows={5}
-              placeholder={t("triage.placeholder")}
-            />
-            {triageError && <div className="modal-err">{triageError}</div>}
-            <div className="modal-actions">
-              <button className="btn ghost" onClick={() => setTriageOpen(false)} disabled={triaging}>
-                {t("common.cancel")}
-              </button>
-              <button className="btn" onClick={triage} disabled={triaging || !enquiry.trim()}>
-                {triaging ? t("triage.running") : t("triage.run")}
-              </button>
-            </div>
+        <Modal busy={triaging} onClose={() => setTriageOpen(false)}>
+          <div className="modal-title">{t("triage.title")}</div>
+          <div className="modal-sub">{t("triage.sub")}</div>
+          <textarea
+            value={enquiry}
+            onChange={(e) => setEnquiry(e.target.value)}
+            rows={5}
+            placeholder={t("triage.placeholder")}
+          />
+          {triageError && <div className="modal-err">{triageError}</div>}
+          <div className="modal-actions">
+            <button
+              className="btn ghost"
+              onClick={() => setTriageOpen(false)}
+              disabled={triaging}
+            >
+              {t("common.cancel")}
+            </button>
+            <button
+              className="btn"
+              onClick={triage}
+              disabled={triaging || !enquiry.trim()}
+            >
+              {triaging ? t("triage.running") : t("triage.run")}
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
 
       {(valuing || valuation || valError) && (
-        <div
-          className="modal-backdrop"
-          onClick={() => {
-            if (!valuing) {
-              setValuation(null);
-              setValError(null);
-            }
+        <Modal
+          busy={valuing}
+          className="val-modal"
+          onClose={() => {
+            setValuation(null);
+            setValError(null);
           }}
         >
-          <div className="modal val-modal" onClick={(e) => e.stopPropagation()}>
-            {valuing && <div className="modal-title">{t("val.valuing")}</div>}
-            {valError && (
-              <>
-                <div className="modal-title">{t("val.title")}</div>
-                <div className="modal-err">{valError}</div>
-                <div className="modal-actions">
-                  <button className="btn" onClick={() => setValError(null)}>
-                    {t("common.close")}
-                  </button>
-                </div>
-              </>
-            )}
-            {valuation && (
-              <>
-                <div className="modal-title">{t("val.estTitle")}</div>
-                <div className="modal-sub">
-                  {valuation.subject.address} · {valuation.subject.propertyType} ·{" "}
-                  {valuation.subject.bedrooms} bed
-                </div>
-                <div className="val-estimate">{fmt(valuation.estimate)}</div>
-                <div className="val-range">
-                  {t("val.range")} {fmt(valuation.low)} – {fmt(valuation.high)}
-                </div>
-                <div className="val-meta">
-                  <span className={`chip val-conf c${Math.round(valuation.confidence * 5)}`}>
-                    {t("val.confidence")} {Math.round(valuation.confidence * 100)}%
-                  </span>
+          {valuing && <div className="modal-title">{t("val.valuing")}</div>}
+          {valError && (
+            <>
+              <div className="modal-title">{t("val.title")}</div>
+              <div className="modal-err">{valError}</div>
+              <div className="modal-actions">
+                <button className="btn" onClick={() => setValError(null)}>
+                  {t("common.close")}
+                </button>
+              </div>
+            </>
+          )}
+          {valuation && (
+            <>
+              <div className="modal-title">{t("val.estTitle")}</div>
+              <div className="modal-sub">
+                {valuation.subject.address} · {valuation.subject.propertyType} ·{" "}
+                {valuation.subject.bedrooms} bed
+              </div>
+              <div className="val-estimate">{fmt(valuation.estimate)}</div>
+              <div className="val-range">
+                {t("val.range")} {fmt(valuation.low)} – {fmt(valuation.high)}
+              </div>
+              <div className="val-meta">
+                <span
+                  className={`chip val-conf c${Math.round(valuation.confidence * 5)}`}
+                >
+                  {t("val.confidence")} {Math.round(valuation.confidence * 100)}
+                  %
+                </span>
+                <span className="chip">
+                  {valuation.compCount} {t("val.comps")} · {valuation.radiusKm}{" "}
+                  km
+                </span>
+                {valuation.actual != null && (
                   <span className="chip">
-                    {valuation.compCount} {t("val.comps")} · {valuation.radiusKm} km
+                    {t("val.actual")} {fmt(valuation.actual)} · {t("val.err")}{" "}
+                    {valuation.errorPct}%
                   </span>
-                  {valuation.actual != null && (
-                    <span className="chip">
-                      {t("val.actual")} {fmt(valuation.actual)} · {t("val.err")} {valuation.errorPct}%
-                    </span>
-                  )}
-                </div>
-                <div className="val-comps">
-                  <div className="val-comps-head">{t("val.compsHead")}</div>
-                  {valuation.comps.slice(0, 8).map((c) => (
-                    <div key={c.id} className="val-comp">
-                      <span className="vc-price">{fmt(c.price)}</span>
-                      <span className="vc-dist">{Math.round(c.distanceM)} m</span>
-                      <span className="vc-beds">{c.bedrooms ?? "?"}b</span>
-                      <span className="vc-addr">{c.address}</span>
-                      <span className="vc-w">{(c.weight * 100).toFixed(0)}%</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="modal-actions">
-                  <button className="btn" onClick={() => setValuation(null)}>
-                    {t("common.close")}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+                )}
+              </div>
+              <div className="val-comps">
+                <div className="val-comps-head">{t("val.compsHead")}</div>
+                {valuation.comps.slice(0, 8).map((c) => (
+                  <div key={c.id} className="val-comp">
+                    <span className="vc-price">{fmt(c.price)}</span>
+                    <span className="vc-dist">{Math.round(c.distanceM)} m</span>
+                    <span className="vc-beds">{c.bedrooms ?? "?"}b</span>
+                    <span className="vc-addr">{c.address}</span>
+                    <span className="vc-w">{(c.weight * 100).toFixed(0)}%</span>
+                  </div>
+                ))}
+              </div>
+              <div className="modal-actions">
+                <button className="btn" onClick={() => setValuation(null)}>
+                  {t("common.close")}
+                </button>
+              </div>
+            </>
+          )}
+        </Modal>
       )}
 
       {addOpen && (
-        <div className="modal-backdrop" onClick={() => !alSaving && setAddOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-title">{t("add.title")}</div>
-            <div className="modal-sub">{t("add.sub")}</div>
-            <div className="add-form">
+        <Modal busy={alSaving} onClose={() => setAddOpen(false)}>
+          <div className="modal-title">{t("add.title")}</div>
+          <div className="modal-sub">{t("add.sub")}</div>
+          <div className="add-form">
+            <input
+              className="nl-input"
+              placeholder={t("add.address")}
+              value={alAddress}
+              onChange={(e) => setAlAddress(e.target.value)}
+            />
+            <div className="add-row">
+              <select
+                className="nl-input"
+                value={alCity}
+                onChange={(e) => setAlCity(e.target.value)}
+              >
+                {[
+                  "Warszawa",
+                  "Kraków",
+                  "Wrocław",
+                  "Gdańsk",
+                  "Poznań",
+                  "Łódź",
+                ].map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
+              </select>
+              <select
+                className="nl-input"
+                value={alType}
+                onChange={(e) => setAlType(e.target.value)}
+              >
+                {["apartment", "house", "studio", "townhouse"].map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+            <div className="add-row">
               <input
                 className="nl-input"
-                placeholder={t("add.address")}
-                value={alAddress}
-                onChange={(e) => setAlAddress(e.target.value)}
+                type="number"
+                placeholder={t("add.price")}
+                value={alPrice}
+                onChange={(e) => setAlPrice(e.target.value)}
               />
-              <div className="add-row">
-                <select className="nl-input" value={alCity} onChange={(e) => setAlCity(e.target.value)}>
-                  {["Warszawa", "Kraków", "Wrocław", "Gdańsk", "Poznań", "Łódź"].map((c) => (
-                    <option key={c}>{c}</option>
-                  ))}
-                </select>
-                <select className="nl-input" value={alType} onChange={(e) => setAlType(e.target.value)}>
-                  {["apartment", "house", "studio", "townhouse"].map((t) => (
-                    <option key={t}>{t}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="add-row">
-                <input
-                  className="nl-input"
-                  type="number"
-                  placeholder={t("add.price")}
-                  value={alPrice}
-                  onChange={(e) => setAlPrice(e.target.value)}
-                />
-                <input
-                  className="nl-input"
-                  type="number"
-                  placeholder={t("add.bedrooms")}
-                  value={alBeds}
-                  onChange={(e) => setAlBeds(e.target.value)}
-                />
-              </div>
-              <div className="add-row">
-                <input
-                  className="nl-input"
-                  type="number"
-                  placeholder={t("add.area")}
-                  value={alArea}
-                  onChange={(e) => setAlArea(e.target.value)}
-                />
-                <input
-                  className="nl-input"
-                  type="number"
-                  placeholder={t("add.bathrooms")}
-                  value={alBath}
-                  onChange={(e) => setAlBath(e.target.value)}
-                />
-                <label className="near furnished-toggle">
-                  <input
-                    type="checkbox"
-                    checked={alFurnished}
-                    onChange={(e) => setAlFurnished(e.target.checked)}
-                  />
-                  {t("add.furnished")}
-                </label>
-              </div>
-              <textarea
+              <input
                 className="nl-input"
-                rows={2}
-                placeholder={t("add.desc")}
-                value={alDesc}
-                onChange={(e) => setAlDesc(e.target.value)}
+                type="number"
+                placeholder={t("add.bedrooms")}
+                value={alBeds}
+                onChange={(e) => setAlBeds(e.target.value)}
               />
             </div>
-            {alError && <div className="modal-err">{alError}</div>}
-            <div className="modal-actions">
-              <button className="btn ghost" onClick={() => setAddOpen(false)} disabled={alSaving}>
-                {t("common.cancel")}
-              </button>
-              <button
-                className="btn"
-                onClick={submitListing}
-                disabled={alSaving || !alAddress.trim() || !alPrice}
-              >
-                {alSaving ? t("add.saving") : t("add.submit")}
-              </button>
+            <div className="add-row">
+              <input
+                className="nl-input"
+                type="number"
+                placeholder={t("add.area")}
+                value={alArea}
+                onChange={(e) => setAlArea(e.target.value)}
+              />
+              <input
+                className="nl-input"
+                type="number"
+                placeholder={t("add.bathrooms")}
+                value={alBath}
+                onChange={(e) => setAlBath(e.target.value)}
+              />
+              <label className="near furnished-toggle">
+                <input
+                  type="checkbox"
+                  checked={alFurnished}
+                  onChange={(e) => setAlFurnished(e.target.checked)}
+                />
+                {t("add.furnished")}
+              </label>
             </div>
+            <textarea
+              className="nl-input"
+              rows={2}
+              placeholder={t("add.desc")}
+              value={alDesc}
+              onChange={(e) => setAlDesc(e.target.value)}
+            />
           </div>
-        </div>
+          {alError && <div className="modal-err">{alError}</div>}
+          <div className="modal-actions">
+            <button
+              className="btn ghost"
+              onClick={() => setAddOpen(false)}
+              disabled={alSaving}
+            >
+              {t("common.cancel")}
+            </button>
+            <button
+              className="btn"
+              onClick={submitListing}
+              disabled={alSaving || !alAddress.trim() || !alPrice}
+            >
+              {alSaving ? t("add.saving") : t("add.submit")}
+            </button>
+          </div>
+        </Modal>
       )}
 
       <Onboarding />

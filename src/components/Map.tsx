@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { haversineKm } from "@/lib/geo";
 
 export interface MapMarker {
   id: string;
@@ -19,22 +20,14 @@ export interface MapView {
   radiusKm: number; // ~half-diagonal of the current viewport
 }
 
-function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
-  const R = 6371;
-  const dLat = ((bLat - aLat) * Math.PI) / 180;
-  const dLng = ((bLng - aLng) * Math.PI) / 180;
-  const s =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((aLat * Math.PI) / 180) *
-      Math.cos((bLat * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
-}
-
 function viewOf(map: maplibregl.Map): MapView {
   const c = map.getCenter();
   const ne = map.getBounds().getNorthEast();
-  return { lng: c.lng, lat: c.lat, radiusKm: haversineKm(c.lat, c.lng, ne.lat, ne.lng) };
+  return {
+    lng: c.lng,
+    lat: c.lat,
+    radiusKm: haversineKm(c.lat, c.lng, ne.lat, ne.lng),
+  };
 }
 
 export interface MapFocus {
@@ -55,7 +48,8 @@ export interface RouteStop {
   n: number; // 0 = start, 1..N = viewings
 }
 
-const DARK_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+const DARK_STYLE =
+  "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
 /**
  * Dark MapLibre map (Carto dark-matter) with custom colored category pins.
@@ -94,8 +88,8 @@ export default function Map({
     onMapClickRef.current = onMapClick;
   });
   const mapRef = useRef<maplibregl.Map | null>(null);
-  const markerObjs = useRef<maplibregl.Marker[]>([]);
   const markerById = useRef<Record<string, maplibregl.Marker>>({});
+  const markerSig = useRef<Record<string, string>>({}); // id -> content signature
   const routeMarkerObjs = useRef<maplibregl.Marker[]>([]);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -116,13 +110,18 @@ export default function Map({
       queueMicrotask(() => setFailed(true));
       return;
     }
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-left");
+    map.addControl(
+      new maplibregl.NavigationControl({ showCompass: false }),
+      "top-left",
+    );
     map.on("load", () => {
       setReady(true);
       onMoveEnd?.(viewOf(map)); // seed the view so "Near map" works before any pan
     });
     map.on("moveend", () => onMoveEnd?.(viewOf(map)));
-    map.on("click", (e) => onMapClickRef.current?.({ lng: e.lngLat.lng, lat: e.lngLat.lat }));
+    map.on("click", (e) =>
+      onMapClickRef.current?.({ lng: e.lngLat.lng, lat: e.lngLat.lat }),
+    );
     mapRef.current = map;
     return () => {
       map.remove();
@@ -131,13 +130,24 @@ export default function Map({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sync markers whenever they (or readiness) change.
+  // Sync markers whenever they (or readiness) change. Diff by id so unchanged
+  // pins keep their DOM element (and any open popup / hover class) instead of
+  // being torn down and rebuilt on every search.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready) return;
-    for (const m of markerObjs.current) m.remove();
-    markerById.current = {};
-    markerObjs.current = markers.map((m) => {
+    const next = new Set(markers.map((m) => m.id));
+    for (const id of Object.keys(markerById.current)) {
+      if (!next.has(id)) {
+        markerById.current[id].remove();
+        delete markerById.current[id];
+        delete markerSig.current[id];
+      }
+    }
+    for (const m of markers) {
+      const sig = `${m.lng},${m.lat},${m.color ?? ""},${m.html ?? m.label ?? ""}`;
+      if (markerSig.current[m.id] === sig) continue; // unchanged — leave as-is
+      markerById.current[m.id]?.remove();
       const el = document.createElement("div");
       el.className = "pin";
       el.style.background = m.color ?? "#2f6bff";
@@ -147,7 +157,11 @@ export default function Map({
       });
       const popup =
         m.html || m.label
-          ? new maplibregl.Popup({ offset: 16, closeButton: false, className: "domus-popup" })
+          ? new maplibregl.Popup({
+              offset: 16,
+              closeButton: false,
+              className: "domus-popup",
+            })
           : undefined;
       if (popup) {
         if (m.html) popup.setHTML(m.html);
@@ -158,8 +172,8 @@ export default function Map({
         .setPopup(popup)
         .addTo(map);
       markerById.current[m.id] = marker;
-      return marker;
-    });
+      markerSig.current[m.id] = sig;
+    }
   }, [markers, ready]);
 
   // Draw / update the optimized route polyline.
@@ -178,7 +192,11 @@ export default function Map({
         id: "route-line",
         type: "line",
         source: "route",
-        paint: { "line-color": "#2f6bff", "line-width": 4, "line-opacity": 0.85 },
+        paint: {
+          "line-color": "#2f6bff",
+          "line-width": 4,
+          "line-opacity": 0.85,
+        },
         layout: { "line-cap": "round", "line-join": "round" },
       });
     }
@@ -204,7 +222,9 @@ export default function Map({
       const el = document.createElement("div");
       el.className = "pin-num";
       el.textContent = s.n === 0 ? "S" : String(s.n);
-      return new maplibregl.Marker({ element: el }).setLngLat([s.lng, s.lat]).addTo(map);
+      return new maplibregl.Marker({ element: el })
+        .setLngLat([s.lng, s.lat])
+        .addTo(map);
     });
   }, [routeStops, ready]);
 
@@ -266,13 +286,27 @@ export default function Map({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !ready || !focus) return;
-    map.flyTo({ center: [focus.lng, focus.lat], zoom: Math.max(map.getZoom(), 13), speed: 1.2 });
+    map.flyTo({
+      center: [focus.lng, focus.lat],
+      zoom: Math.max(map.getZoom(), 13),
+      speed: 1.2,
+    });
     const marker = markerById.current[focus.id];
     if (marker && !marker.getPopup()?.isOpen()) marker.togglePopup();
   }, [focus, ready]);
 
   if (failed) {
-    return <div className="empty" style={{ margin: "auto" }}>Map unavailable (WebGL required).</div>;
+    return (
+      <div className="empty" style={{ margin: "auto" }}>
+        Map unavailable (WebGL required).
+      </div>
+    );
   }
-  return <div ref={ref} className="maplibregl-map" style={{ width: "100%", height: "100%" }} />;
+  return (
+    <div
+      ref={ref}
+      className="maplibregl-map"
+      style={{ width: "100%", height: "100%" }}
+    />
+  );
 }

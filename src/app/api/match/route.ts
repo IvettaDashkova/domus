@@ -48,9 +48,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ count: results.length, results });
   } catch (err) {
-    return NextResponse.json(
-      { error: (err as Error).message },
-      { status: 500 },
-    );
+    // Log the detail server-side; don't leak embed/DB internals to the client.
+    console.error("match failed", err);
+    return NextResponse.json({ error: "match failed" }, { status: 500 });
   }
 }

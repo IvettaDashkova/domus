@@ -41,7 +41,9 @@ export const rerunBody = z.object({ leadId: z.string().uuid() });
 export const editLeadBody = z.object({
   contact: z.string().max(200).nullable().optional(),
   enquiry: z.string().min(1).max(4000).optional(),
-  status: z.enum(["new", "triaged", "contacted", "viewing", "closed"]).optional(),
+  status: z
+    .enum(["new", "triaged", "contacted", "viewing", "closed"])
+    .optional(),
 });
 export const visualSearchBody = z.object({ query: z.string().min(1).max(500) });
 export const similarBody = z.object({ listingId: z.string().uuid() });
@@ -54,13 +56,14 @@ export const createListingBody = z.object({
   description: z.string().max(2000).optional(),
 });
 export const valuationBody = z.object({ listingId: z.string().uuid() });
+const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "expected HH:MM");
 export const routePlanBody = z.object({
   start: z.object({ lng: z.number(), lat: z.number() }),
   listingIds: z.array(z.string().uuid()).min(1).max(25),
-  startTime: z.string().optional(),
+  startTime: hhmm.optional(),
   dwellMin: z.number().int().positive().max(300).optional(),
   returnToStart: z.boolean().optional(),
-  dayEnd: z.string().optional(),
+  dayEnd: hhmm.optional(),
 });
 
 /** Parse + validate a JSON body; returns the data or a 400 NextResponse. */
@@ -72,11 +75,18 @@ export async function parseBody<T>(
   try {
     body = await req.json();
   } catch {
-    return { response: NextResponse.json({ error: "invalid JSON body" }, { status: 400 }) };
+    return {
+      response: NextResponse.json(
+        { error: "invalid JSON body" },
+        { status: 400 },
+      ),
+    };
   }
   const r = schema.safeParse(body);
   if (!r.success) {
-    const msg = r.error.issues.map((i) => `${i.path.join(".") || "body"}: ${i.message}`).join("; ");
+    const msg = r.error.issues
+      .map((i) => `${i.path.join(".") || "body"}: ${i.message}`)
+      .join("; ");
     return { response: NextResponse.json({ error: msg }, { status: 400 }) };
   }
   return { data: r.data };

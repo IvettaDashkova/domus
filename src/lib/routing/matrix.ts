@@ -1,4 +1,5 @@
 import { osrmUrl } from "@/lib/env";
+import { haversineMeters } from "@/lib/geo";
 
 export interface Coord {
   lng: number;
@@ -18,7 +19,9 @@ export async function travelTimeMatrix(coords: Coord[]): Promise<number[][]> {
   if (coords.length < 2) throw new Error("need at least 2 coordinates");
   const path = coords.map((c) => `${c.lng},${c.lat}`).join(";");
   const url = `${osrmUrl()}/table/v1/driving/${path}?annotations=duration`;
-  const res = await fetch(url);
+  // Node/undici fetch has no default timeout — cap it so a stalled OSRM can't
+  // hold the function open to the platform limit (the caller falls back to est).
+  const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
   if (!res.ok) throw new Error(`OSRM /table HTTP ${res.status}`);
   const j = (await res.json()) as {
     code: string;
@@ -26,27 +29,20 @@ export async function travelTimeMatrix(coords: Coord[]): Promise<number[][]> {
     sources?: ({ distance?: number } | null)[];
     destinations?: ({ distance?: number } | null)[];
   };
-  if (j.code !== "Ok" || !j.durations) throw new Error(`OSRM /table: ${j.code}`);
+  if (j.code !== "Ok" || !j.durations)
+    throw new Error(`OSRM /table: ${j.code}`);
   // If a point snapped far from any road, it's outside the loaded network
   // (e.g. Wrocław against a Warsaw-only extract) — OSRM then returns bogus
   // durations from wherever it snapped. Reject so we fall back to estimates.
-  const snaps = [...(j.sources ?? []), ...(j.destinations ?? [])].map((s) => s?.distance ?? 0);
+  const snaps = [...(j.sources ?? []), ...(j.destinations ?? [])].map(
+    (s) => s?.distance ?? 0,
+  );
   const maxSnap = snaps.length ? Math.max(...snaps) : 0;
-  if (maxSnap > 3000) throw new Error(`OSRM: point ${Math.round(maxSnap)}m from road (out of region)`);
+  if (maxSnap > 3000)
+    throw new Error(
+      `OSRM: point ${Math.round(maxSnap)}m from road (out of region)`,
+    );
   return j.durations;
-}
-
-/** Great-circle distance in metres. */
-export function haversineMeters(a: Coord, b: Coord): number {
-  const R = 6371000;
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-  const s =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((a.lat * Math.PI) / 180) *
-      Math.cos((b.lat * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
 }
 
 // Straight-line travel-time estimate when road data isn't available for these
@@ -57,7 +53,11 @@ const URBAN_KMH = 22;
 const DETOUR = 1.4;
 const EST_MPS = (URBAN_KMH * 1000) / 3600;
 export function haversineMatrix(coords: Coord[]): number[][] {
-  return coords.map((a) => coords.map((b) => (haversineMeters(a, b) * DETOUR) / EST_MPS));
+  return coords.map((a) =>
+    coords.map(
+      (b) => (haversineMeters(a.lat, a.lng, b.lat, b.lng) * DETOUR) / EST_MPS,
+    ),
+  );
 }
 
 /** A simple polyline straight through the ordered waypoints. */
@@ -75,13 +75,18 @@ export interface RouteGeometry {
 export async function routeGeometry(coords: Coord[]): Promise<RouteGeometry> {
   const path = coords.map((c) => `${c.lng},${c.lat}`).join(";");
   const url = `${osrmUrl()}/route/v1/driving/${path}?overview=full&geometries=geojson&annotations=duration`;
-  const res = await fetch(url);
+  const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
   if (!res.ok) throw new Error(`OSRM /route HTTP ${res.status}`);
   const j = (await res.json()) as {
     code: string;
-    routes?: { geometry: LineString; duration: number; legs: { duration: number }[] }[];
+    routes?: {
+      geometry: LineString;
+      duration: number;
+      legs: { duration: number }[];
+    }[];
   };
-  if (j.code !== "Ok" || !j.routes?.[0]) throw new Error(`OSRM /route: ${j.code}`);
+  if (j.code !== "Ok" || !j.routes?.[0])
+    throw new Error(`OSRM /route: ${j.code}`);
   const r = j.routes[0];
   return {
     geojson: r.geometry,

@@ -22,7 +22,7 @@ services:
     image: osrm/osrm-backend:latest
     container_name: domus-osrm
     # Requires a prepared extract: run `pnpm osrm:prepare` once before `up`.
-    command: osrm-routed --algorithm mld /data/mazowieckie-latest.osrm
+    command: osrm-routed --algorithm mld /data/dolnoslaskie-latest.osrm
     ports:
       - "5001:5000"
     volumes:

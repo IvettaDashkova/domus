@@ -16,7 +16,8 @@ export async function POST(req: Request) {
     const { scopedAgencies } = await import("@/lib/listings/scope");
 
     const scoped = await scopedAgencies();
-    if (!scoped.length) return NextResponse.json({ error: "no agency" }, { status: 404 });
+    if (!scoped.length)
+      return NextResponse.json({ error: "no agency" }, { status: 404 });
 
     // Gather the selected listings from wherever they live (own agency + catalog),
     // de-duplicated by id (an id can only match one agency, but guard anyway) and
@@ -24,8 +25,17 @@ export async function POST(req: Request) {
     const found = (
       await Promise.all(
         scoped.map((a) =>
-          withTenant(a.id, (sql) =>
-            sql<{ id: string; address: string | null; lng: number; lat: number }[]>`
+          withTenant(
+            a.id,
+            (sql) =>
+              sql<
+                {
+                  id: string;
+                  address: string | null;
+                  lng: number;
+                  lat: number;
+                }[]
+              >`
               select id, address,
                      st_x(geom::geometry) as lng, st_y(geom::geometry) as lat
               from listings
@@ -40,7 +50,10 @@ export async function POST(req: Request) {
       return l ? [l] : [];
     });
     if (listings.length < 1) {
-      return NextResponse.json({ error: "no routable listings" }, { status: 400 });
+      return NextResponse.json(
+        { error: "no routable listings" },
+        { status: 400 },
+      );
     }
 
     const plan = await planRoute({
@@ -53,6 +66,11 @@ export async function POST(req: Request) {
     });
     return NextResponse.json(plan);
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    // Log the detail server-side; don't leak OSRM/DB internals to the client.
+    console.error("route/plan failed", err);
+    return NextResponse.json(
+      { error: "route planning failed" },
+      { status: 500 },
+    );
   }
 }

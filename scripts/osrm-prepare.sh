@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
-# Prepare an OSM extract for OSRM. Default: Greater London (covers the bulk of
-# the demo listings). Override with REGION_URL / REGION_BASE for another area.
+# Prepare an OSM extract for OSRM. Default: Dolnośląskie (Wrocław region) — small
+# and fast, and covers the routable demo (viewing routes are planned around
+# Wrocław). Listings outside it (Warsaw, Kraków, Gdańsk…) fall back to
+# straight-line ETAs flagged as `degraded` in the route plan. To route all of
+# Poland with real roads, set REGION_URL/REGION_BASE to poland-latest — note that
+# needs ~30GB free disk and ~8GB RAM for the MLD pipeline.
 # Runs the MLD pipeline: extract -> partition -> customize.
 set -euo pipefail
 
 DATA_DIR="$(cd "$(dirname "$0")/.." && pwd)/osrm/data"
-PBF_URL="${REGION_URL:-https://download.geofabrik.de/europe/poland/mazowieckie-latest.osm.pbf}"
-BASE="${REGION_BASE:-mazowieckie-latest}"
+PBF_URL="${REGION_URL:-https://download.geofabrik.de/europe/poland/dolnoslaskie-latest.osm.pbf}"
+BASE="${REGION_BASE:-dolnoslaskie-latest}"
 PBF="$BASE.osm.pbf"
 IMG="osrm/osrm-backend:latest"
 
