@@ -10,8 +10,17 @@ the Locus geo-AI template.
 
 📐 **[Architecture & design →](docs/ARCHITECTURE.md)**
 
-> **Phase 0** establishes a production-shaped skeleton with every verification
-> gate green. Feature logic lands in later phases.
+## What it does
+
+- **Lead triage** — a free-text buyer enquiry → structured brief (Gemini) → grounded matches.
+- **Hybrid search** — semantic (pgvector) + keyword (pg_trgm) + spatial (PostGIS), fused with Reciprocal Rank Fusion.
+- **Viewing-route planner** — TSP over real OSRM driving times, with a straight-line fallback (flagged `degraded`) outside the routing region.
+- **Valuation** — inverse-distance-weighted AVM from nearby comparable sales.
+- **AI assistant** (`/api/agent`) — a tool-calling agent that decides which of the above to call, grounded in the tenant's catalog (no fabrication).
+- **Visual search** — CLIP image-embedding lookup.
+
+Multi-tenant by Postgres RLS (fail-closed). CI keeps `typecheck · lint · test · build`
+green and audits RLS isolation on every push.
 
 ## Stack
 
@@ -24,8 +33,8 @@ the Locus geo-AI template.
 | Queue          | pg-boss (Postgres-backed, no Redis)                            |
 | Routing        | self-hosted OSRM (Docker) on **5001**                          |
 | Embeddings     | Transformers.js — text `bge-small-en-v1.5` (384-d, **locked**), image `clip-vit-base-patch32` (512-d) |
-| LLM            | Gemini free tier via Vercel AI SDK (wired; used from Phase 3)  |
-| Map            | MapLibre + OpenFreeMap (Deck.gl layers later)                 |
+| LLM            | Gemini 2.5 Flash via Vercel AI SDK v7 — structured extraction + tool-calling agent |
+| Map            | MapLibre + OpenFreeMap                                         |
 | Tracing        | Langfuse                                                       |
 | Multi-tenancy  | Postgres Row-Level Security (agency-scoped, fail-closed)       |
 
@@ -34,28 +43,29 @@ the Locus geo-AI template.
 ```bash
 pnpm install
 cp .env.example .env.local            # dev values already match docker-compose
-pnpm osrm:prepare                     # downloads + processes a small OSM extract (once)
+pnpm osrm:prepare                     # downloads + processes the Dolnośląskie (Wrocław) extract (once)
 docker compose up -d                  # Postgres (5434) + OSRM (5001)
 pnpm db:migrate                       # apply migrations
 pnpm db:seed                          # ~300 real listings + embeddings
 pnpm dev                              # http://localhost:3007
 ```
 
-## Verification gates (Phase 0)
+## Quality gates
 
 | Gate | Command                                   |
 | ---- | ----------------------------------------- |
-| Infra healthy        | `docker compose ps`               |
+| Unit tests           | `pnpm test` (Vitest)              |
+| Build/lint/types     | `pnpm build` · `pnpm lint` · `pnpm typecheck` |
+| RLS isolation audit  | `pnpm db:rls-check` · `pnpm security:audit` |
+| Retrieval / AVM evals| `pnpm evals` (precision@k · recall@k · MRR · MAPE) |
 | Migrations + ext.    | `pnpm db:migrate` · `\dx`         |
-| RLS isolation        | `pnpm db:rls-check`               |
-| Seed + embeddings    | `pnpm db:seed`                    |
 | Queue smoke job      | `pnpm smoke:job`                  |
 | OSRM route           | `curl localhost:5001/route/v1/driving/17.0333,51.1093;17.07,51.12` |
-| Evals harness        | `pnpm evals`                      |
-| Build/lint/types     | `pnpm build` · `pnpm lint` · `pnpm typecheck` |
 | Health route         | `curl localhost:3007/api/health` |
 
-## Ingest pipeline (Phase 1)
+`typecheck · lint · test · build` and the RLS audit run on every push via [CI](.github/workflows/ci.yml).
+
+## Ingest pipeline
 
 Idempotent pg-boss pipeline: `ingest → geocode → embed.text → embed.image →
 enrich`, each stage retried with exponential backoff. Permanent errors (bad
@@ -72,15 +82,17 @@ pnpm retry:proof            # prove retry/backoff (fails 3x, then succeeds)
 
 ```
 db/migrations   SQL migrations (extensions, tenancy, domain, RLS, indexes)
-db/seed         real-data seed (Land Registry + postcodes.io geocoding)
-scripts         migrate / rls-check / smoke-job runners
-src/app         App Router pages + /api/health
-src/lib         db client + tenant RLS helper, embeddings, retrieval, jobs, ai, tracing
-evals           brief→listing dataset + precision@k / recall@k / MRR
+db/seed         real Polish listings (open data) + geocoding
+scripts         migrate / rls-check / security-audit / seed / ingest runners
+src/app         App Router pages + /api (agent, match, triage, route, valuation, …) + SEO routes
+src/lib         db/RLS, embeddings, retrieval, routing, valuation, geocode, jobs, ai, agent, seo
+tests           Vitest unit tests (geo, TSP, retrieval metrics, matrix, schemas)
+evals           brief→listing dataset + precision@k / recall@k / MRR; AVM MAPE
+docs            ARCHITECTURE.md · DEPLOY.md
 osrm            OSM extract + OSRM artifacts (gitignored)
 ```
 
-## Deploying (Phase 0 prod gate)
+## Deploying
 
 See [`docs/DEPLOY.md`](docs/DEPLOY.md). Key points: Supabase for the DB,
 URL-encode special chars in the password, set Vercel env per scope, and DB-touching
