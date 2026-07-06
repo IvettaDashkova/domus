@@ -4,6 +4,24 @@ import { dirname } from "node:path";
 
 const root = dirname(fileURLToPath(import.meta.url));
 
+// Routes that embed a query at runtime pull in onnxruntime-node. Force its
+// linux/x64 native lib into the bundle (file tracing misses it, causing
+// "libonnxruntime.so.1: cannot open shared object file"), and drop the
+// win32/darwin/arm64 binaries Vercel never runs — those alone are ~160 MB and
+// push these functions past Vercel's 250 MB uncompressed limit.
+const EMBED_ROUTES = [
+  "/api/match",
+  "/api/leads/triage",
+  "/api/leads/rerun",
+  "/api/visual-search",
+  "/api/listings",
+  "/api/agent",
+];
+const ONNX_BIN =
+  "./node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin";
+const byRoute = (globs: string[]): Record<string, string[]> =>
+  Object.fromEntries(EMBED_ROUTES.map((r) => [r, globs]));
+
 const nextConfig: NextConfig = {
   // Pin the workspace root — this repo sits alongside other lockfiles.
   turbopack: { root },
@@ -30,26 +48,14 @@ const nextConfig: NextConfig = {
     "pg-boss",
     "postgres",
   ],
-  // Force the onnxruntime-node native libs (.so) into the serverless function
-  // bundle — file tracing misses them (loaded via a dynamic path), which causes
-  // "libonnxruntime.so.1: cannot open shared object file" on Vercel.
-  outputFileTracingIncludes: {
-    "/api/match": [
-      "./node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin/**/linux/x64/*",
-    ],
-    "/api/leads/triage": [
-      "./node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin/**/linux/x64/*",
-    ],
-    "/api/visual-search": [
-      "./node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin/**/linux/x64/*",
-    ],
-    "/api/leads/rerun": [
-      "./node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin/**/linux/x64/*",
-    ],
-    "/api/listings": [
-      "./node_modules/.pnpm/onnxruntime-node@*/node_modules/onnxruntime-node/bin/**/linux/x64/*",
-    ],
-  },
+  // Keep only the linux/x64 onnxruntime native lib in each embedding route's
+  // function; exclude the other platforms' binaries (see EMBED_ROUTES note).
+  outputFileTracingIncludes: byRoute([`${ONNX_BIN}/**/linux/x64/*`]),
+  outputFileTracingExcludes: byRoute([
+    `${ONNX_BIN}/napi-v*/win32/**`,
+    `${ONNX_BIN}/napi-v*/darwin/**`,
+    `${ONNX_BIN}/napi-v*/linux/arm64/**`,
+  ]),
 };
 
 export default nextConfig;
