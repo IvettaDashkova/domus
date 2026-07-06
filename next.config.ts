@@ -4,11 +4,12 @@ import { dirname } from "node:path";
 
 const root = dirname(fileURLToPath(import.meta.url));
 
-// Routes that embed a query at runtime pull in onnxruntime-node. Force its
-// linux/x64 native lib into the bundle (file tracing misses it, causing
-// "libonnxruntime.so.1: cannot open shared object file"), and drop the
-// win32/darwin/arm64 binaries Vercel never runs — those alone are ~160 MB and
-// push these functions past Vercel's 250 MB uncompressed limit.
+// Routes that embed a query at runtime pull in onnxruntime-node. File tracing
+// misses its native .so (loaded via a dynamic path), so force the linux/x64 lib
+// into each such function or it throws "libonnxruntime.so.1: cannot open shared
+// object file" on Vercel. NB: these functions are large (~360 MB) because
+// serverExternalPackages copies the whole transformers/onnx closure; deploying
+// them needs VERCEL_SUPPORT_LARGE_FUNCTIONS=1 set on the target environment.
 const EMBED_ROUTES = [
   "/api/match",
   "/api/leads/triage",
@@ -48,14 +49,9 @@ const nextConfig: NextConfig = {
     "pg-boss",
     "postgres",
   ],
-  // Keep only the linux/x64 onnxruntime native lib in each embedding route's
-  // function; exclude the other platforms' binaries (see EMBED_ROUTES note).
+  // Force the linux/x64 onnxruntime native lib into each embedding route (see
+  // EMBED_ROUTES note) — including the new /api/agent route.
   outputFileTracingIncludes: byRoute([`${ONNX_BIN}/**/linux/x64/*`]),
-  outputFileTracingExcludes: byRoute([
-    `${ONNX_BIN}/napi-v*/win32/**`,
-    `${ONNX_BIN}/napi-v*/darwin/**`,
-    `${ONNX_BIN}/napi-v*/linux/arm64/**`,
-  ]),
 };
 
 export default nextConfig;
