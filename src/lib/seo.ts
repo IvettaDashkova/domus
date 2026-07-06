@@ -11,7 +11,9 @@ export const site = {
     "Domus is an AI operations tool for real-estate agencies: free-text lead " +
     "triage, hybrid (semantic + keyword + spatial) property matching on a map, " +
     "optimized viewing routes, and comps-based valuation. Built on open data.",
-  url: (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3007").replace(/\/$/, ""),
+  // `||` (not `??`) so an empty-string env value falls back too — an empty URL
+  // would otherwise crash the build at `new URL("")`.
+  url: (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3007").replace(/\/$/, ""),
   author: "Ivetta Dashkova",
   locale: "en_US",
   themeColor: "#0f172a",
