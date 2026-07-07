@@ -1,0 +1,22 @@
+name: Lighthouse
+
+# Report-only SEO/perf/a11y scoring of the live production site. Runs on demand
+# and weekly; uploads a public report link (never fails the build).
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+
+jobs:
+  lighthouse:
+    name: lighthouse (production)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Lighthouse
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          urls: |
+            https://domus-psi-five.vercel.app/
+          uploadArtifacts: true
+          temporaryPublicStorage: true

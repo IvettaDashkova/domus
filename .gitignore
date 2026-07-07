@@ -39,3 +39,9 @@ db/seed/data/
 .idea/
 .vscode/
 96a77719-31c0-4668-b740-1ad0a9e00dd6.png
+
+# playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
