@@ -17,6 +17,8 @@ export const site = {
   author: "Ivetta Dashkova",
   locale: "en_US",
   themeColor: "#0f172a",
+  // Google Search Console site-verification token (public; rendered as a meta tag).
+  googleSiteVerification: "FtB09ylEgeZTBM2OX5YhmS0WRtqoU6w67aaJuGluKmo",
   keywords: [
     "real estate",
     "PropTech",

@@ -42,6 +42,7 @@ export const metadata: Metadata = {
     follow: true,
     googleBot: { index: true, follow: true, "max-image-preview": "large" },
   },
+  verification: { google: site.googleSiteVerification },
 };
 
 export const viewport: Viewport = {
