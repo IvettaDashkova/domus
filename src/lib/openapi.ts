@@ -37,10 +37,16 @@ export const openApiSpec = {
     title: "Domus API",
     version: "1.0.0",
     description:
-      "HTTP API for Domus — AI real-estate operations: lead triage, hybrid " +
+      "HTTP API for **Domus** — AI real-estate operations: lead triage, hybrid " +
       "property search, viewing-route planning, comps valuation, visual search, " +
-      "and a tool-calling assistant. All request bodies are JSON and validated " +
-      "with Zod; endpoints are tenant-scoped by Postgres RLS.",
+      "and a tool-calling assistant. All request bodies are JSON, validated with " +
+      "Zod; endpoints are tenant-scoped by Postgres Row-Level Security.\n\n" +
+      "**Stack:** Next.js 16 (App Router) · React 19 · TypeScript · PostgreSQL 16 " +
+      "(PostGIS, pgvector, pg_trgm) · hybrid RAG with Reciprocal Rank Fusion · " +
+      "Vercel AI SDK + Google Gemini (structured extraction + tool-calling agent) · " +
+      "Transformers.js embeddings (bge-small text, CLIP image) · self-hosted OSRM " +
+      "routing + TSP · pg-boss queue · Langfuse tracing · MapLibre · Supabase Auth · " +
+      "deployed on Vercel.",
     contact: { name: site.author },
   },
   servers: [{ url: "/", description: "Same origin as this page" }],
@@ -156,6 +162,7 @@ export const openApiSpec = {
       post: {
         tags: ["Leads"],
         summary: "Create a lead (requires auth)",
+        security: [{ sessionCookie: [] }],
         requestBody: {
           content: { "application/json": { schema: { $ref: "#/components/schemas/CreateLeadBody" } } },
         },
@@ -241,6 +248,7 @@ export const openApiSpec = {
       patch: {
         tags: ["Leads"],
         summary: "Update a lead (requires auth)",
+        security: [{ sessionCookie: [] }],
         parameters: [
           { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
         ],
@@ -263,6 +271,7 @@ export const openApiSpec = {
       delete: {
         tags: ["Leads"],
         summary: "Delete a lead (requires auth)",
+        security: [{ sessionCookie: [] }],
         parameters: [
           { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
         ],
@@ -284,6 +293,7 @@ export const openApiSpec = {
       post: {
         tags: ["Listings"],
         summary: "Create a listing (requires auth)",
+        security: [{ sessionCookie: [] }],
         requestBody: {
           content: { "application/json": { schema: { $ref: "#/components/schemas/CreateListingBody" } } },
         },
@@ -425,6 +435,17 @@ export const openApiSpec = {
     },
   },
   components: {
+    securitySchemes: {
+      sessionCookie: {
+        type: "apiKey",
+        in: "cookie",
+        name: "sb-access-token",
+        description:
+          "Supabase auth session (HTTP-only cookie). Sign in at /login; the " +
+          "cookie is sent automatically on same-origin requests. Required for " +
+          "lead and listing mutations.",
+      },
+    },
     schemas: {
       MatchBody: {
         type: "object",
