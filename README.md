@@ -8,7 +8,7 @@ and a **tool-calling AI assistant** (`/api/agent`) that grounds every answer in
 the agency's live catalog. Built on open data only. Real-estate instantiation of
 the Locus geo-AI template.
 
-📐 **[Architecture & design →](docs/ARCHITECTURE.md)**
+📐 **[Architecture & design →](docs/ARCHITECTURE.md)** · 📖 **[Live API reference →](https://domus-psi-five.vercel.app/api/docs)** (Swagger UI · [OpenAPI JSON](https://domus-psi-five.vercel.app/api/openapi))
 
 ## What it does
 
